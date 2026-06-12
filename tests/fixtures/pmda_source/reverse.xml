@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackIns xmlns="http://info.pmda.go.jp/namespace/prescription_drugs/package_insert/1.0">
+  <PackageInsertNo>TEST-002</PackageInsertNo>
+  <CompanyIdentifier>654321</CompanyIdentifier>
+  <DateOfPreparationOrRevision><PreparationOrRevision id="今回"><YearMonth>2026-06</YearMonth></PreparationOrRevision></DateOfPreparationOrRevision>
+  <ApprovalEtc><DetailBrandName><ApprovalBrandName><Lang>相手薬錠</Lang></ApprovalBrandName><BrandCode><YJCode>987654321098</YJCode></BrandCode></DetailBrandName></ApprovalEtc>
+  <GenericName><Detail><Lang>相手薬</Lang></Detail></GenericName>
+  <CompositionAndProperty><ActiveIngredientName><Lang>相手薬 10mg</Lang></ActiveIngredientName></CompositionAndProperty>
+  <Interactions>
+    <ContraIndicatedCombinations><ContraIndicatedCombination><ContraIndication><Drug><DrugName><Detail><Lang>クラリスロマイシン</Lang></Detail></DrugName><ClinSymptomsAndMeasures><Detail><Lang>作用が増強する。</Lang></Detail></ClinSymptomsAndMeasures><MechanismAndRiskFactors><Detail><Lang>CYP3A阻害。</Lang></Detail></MechanismAndRiskFactors></Drug></ContraIndication></ContraIndicatedCombination></ContraIndicatedCombinations>
+    <PrecautionsForCombinations><PrecautionsForCombination><PrecautionsForCombi><Drug><DrugName><Detail><Lang>別の薬</Lang></Detail></DrugName><ClinSymptomsAndMeasures><Detail><Lang>注意する。</Lang></Detail></ClinSymptomsAndMeasures><MechanismAndRiskFactors><Detail><Lang>血中濃度上昇。</Lang></Detail></MechanismAndRiskFactors></Drug></PrecautionsForCombi></PrecautionsForCombination></PrecautionsForCombinations>
+  </Interactions>
+</PackIns>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackIns xmlns="http://info.pmda.go.jp/namespace/prescription_drugs/package_insert/1.0">
+  <PackageInsertNo>TEST-001</PackageInsertNo>
+  <CompanyIdentifier>123456</CompanyIdentifier>
+  <DateOfPreparationOrRevision><PreparationOrRevision id="今回"><YearMonth>2026-06</YearMonth></PreparationOrRevision></DateOfPreparationOrRevision>
+  <ApprovalEtc><DetailBrandName><ApprovalBrandName><Lang>クラリス錠200</Lang></ApprovalBrandName><BrandCode><YJCode>123456789012</YJCode></BrandCode></DetailBrandName></ApprovalEtc>
+  <GenericName><Detail><Lang>クラリスロマイシン</Lang></Detail></GenericName>
+  <CompositionAndProperty><ActiveIngredientName><Lang>クラリスロマイシン 200mg</Lang></ActiveIngredientName></CompositionAndProperty>
+  <Interactions>
+    <ContraIndicatedCombinations><ContraIndicatedCombination><ContraIndication><Drug><DrugName><Detail><Lang>ピモジド</Lang></Detail></DrugName><ClinSymptomsAndMeasures><Detail><Lang>作用が増強する。</Lang></Detail></ClinSymptomsAndMeasures><MechanismAndRiskFactors><Detail><Lang>CYP3A阻害。</Lang></Detail></MechanismAndRiskFactors></Drug></ContraIndication></ContraIndicatedCombination></ContraIndicatedCombinations>
+    <PrecautionsForCombinations><PrecautionsForCombination><PrecautionsForCombi><Drug><DrugName><Detail><Lang>ジゴキシン</Lang></Detail></DrugName><ClinSymptomsAndMeasures><Detail><Lang>注意する。</Lang></Detail></ClinSymptomsAndMeasures><MechanismAndRiskFactors><Detail><Lang>血中濃度上昇。</Lang></Detail></MechanismAndRiskFactors></Drug></PrecautionsForCombi></PrecautionsForCombination></PrecautionsForCombinations>
+  </Interactions>
+</PackIns>

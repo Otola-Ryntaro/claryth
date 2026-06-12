@@ -1,0 +1,32 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+backend/data/clarith.db
+backend/data/pmda_clarith.sqlite
+backend/data/top20_interactions.sqlite
+extension/node_modules/
+extension/dist/
+.runtime/
+.tmp_pytest/
+artifacts/pmda_clarith/
+.DS_Store
+/database
+
+# --- runtime/generated data (never publish) ---
+backend/data/pipeline_log.json
+backend/data/hospitals.json
+backend/data/dictionary.json
+backend/data/settings.json
+
+# --- user feedback samples (never publish) ---
+docs/userfeadback_sample_check.md
+docs/userfeedback_sample_check.md
+
+# --- personal notes / drafts (never publish) ---
+memo.md
+/アプリ名.md
+/ローカルLLM棲み分け.md
+/薬剤トップ20リスト.md
+/Comment20260612_ChatGPT.md
+/Comment20260612_ChatGPT2.md

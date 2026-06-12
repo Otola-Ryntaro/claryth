@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>くらりす</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">DRUG INTERACTION CHECKER</p>
+          <h1>くらりす</h1>
+          <p class="subtitle">くすりの らくな リスク スクリーニング</p>
+        </div>
+        <button id="health-button" class="status-pill" type="button" aria-label="接続状態を再確認">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">接続確認中</span>
+        </button>
+      </header>
+
+      <section class="notice" aria-label="重要な注意">
+        <strong>医療者向け補助ツール</strong>
+        <span>最新の電子添文と患者背景を必ず確認してください。</span>
+      </section>
+
+      <section class="panel input-panel">
+        <div class="target-block">
+          <label for="target-select">相互作用を調べる基準薬</label>
+          <select id="target-select" aria-describedby="target-help">
+            <option value="clarithromycin">2. クラリスロマイシン</option>
+          </select>
+          <p id="target-help" class="target-help">マクロライド系抗菌薬 / 既定</p>
+        </div>
+        <label for="drug-input">確認する薬剤</label>
+        <p class="field-help">一般名・販売名・OTC商品名を、改行または読点で最大20件入力</p>
+        <textarea id="drug-input" rows="7" placeholder="例：&#10;ワーファリン錠1mg&#10;ベルソムラ&#10;ロキソニンS"></textarea>
+        <div class="examples" aria-label="入力例">
+          <button class="example-chip" type="button" data-value="ワーファリン錠1mg">ワーファリン</button>
+          <button class="example-chip" type="button" data-value="ベルソムラ">ベルソムラ</button>
+          <button class="example-chip" type="button" data-value="アレグラFX">アレグラFX</button>
+        </div>
+        <button id="check-button" class="primary-button" type="button">相互作用を確認</button>
+      </section>
+
+      <section id="error-box" class="error-box hidden" role="alert"></section>
+      <section id="candidate-section" class="panel hidden" aria-labelledby="candidate-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">確認が必要</p>
+            <h2 id="candidate-title">薬剤名の候補</h2>
+          </div>
+          <span id="candidate-count" class="count-badge"></span>
+        </div>
+        <div id="candidate-list"></div>
+        <button id="confirm-button" class="primary-button" type="button">選択した薬剤で判定</button>
+      </section>
+
+      <section id="result-section" class="hidden" aria-labelledby="result-title">
+        <div class="section-heading results-heading">
+          <div>
+            <p class="section-kicker">データベース判定</p>
+            <h2 id="result-title">確認結果</h2>
+            <p id="result-target" class="result-target"></p>
+          </div>
+          <span id="result-count" class="count-badge"></span>
+        </div>
+        <div id="result-list"></div>
+      </section>
+
+      <section class="panel runtime-panel bottom-runtime" aria-labelledby="runtime-title">
+        <div class="section-heading runtime-heading">
+          <div>
+            <p class="section-kicker">LOCAL RUNTIME</p>
+            <h2 id="runtime-title">判定API・任意AI補助</h2>
+          </div>
+          <button id="runtime-refresh-button" class="text-button" type="button">再確認</button>
+        </div>
+        <div class="runtime-status-list">
+          <div class="runtime-status-row"><span class="runtime-label">判定API・DB</span><span id="api-runtime-status" class="runtime-state pending">確認中</span></div>
+        </div>
+        <button id="start-api-button" class="secondary-button api-start-button" type="button">判定APIを起動</button>
+        <label class="toggle-row runtime-toggle">
+          <input id="llm-toggle" type="checkbox" />
+          <span>AI薬剤名補助を使う（任意・候補提示のみ）</span>
+        </label>
+        <div id="llm-controls" class="optional-runtime hidden">
+          <div class="runtime-status-list">
+            <div class="runtime-status-row"><span class="runtime-label">Ollama</span><span id="ollama-runtime-status" class="runtime-state pending">未確認</span></div>
+            <div class="runtime-status-row"><span class="runtime-label">LLMモデル</span><span id="model-runtime-status" class="runtime-state pending">未確認</span></div>
+          </div>
+          <div class="runtime-actions">
+            <button id="start-ollama-button" class="secondary-button" type="button">Ollamaを起動</button>
+            <button id="warmup-button" class="secondary-button" type="button">モデルを読み込む</button>
+          </div>
+        </div>
+        <p id="runtime-message" class="runtime-message">AI補助なしで一般名・販売名・誤字候補を検索できます。</p>
+        <details class="setup-details">
+          <summary>初回設定・手動起動コマンド</summary>
+          <p>最初に登録コマンドをPowerShellで1回実行すると、以後は上の起動ボタンを使えます。</p>
+          <div class="command-actions">
+            <button id="copy-install-button" class="text-button boxed" type="button">登録コマンドをコピー</button>
+            <button id="copy-api-button" class="text-button boxed" type="button">API起動コマンドをコピー</button>
+            <button id="copy-ollama-button" class="text-button boxed" type="button">Ollama起動コマンドをコピー</button>
+          </div>
+        </details>
+      </section>
+
+      <footer>
+        <p id="dataset-meta">データセット情報を取得中...</p>
+        <p>「記載なし」は相互作用がないことの保証ではありません。</p>
+      </footer>
+    </main>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

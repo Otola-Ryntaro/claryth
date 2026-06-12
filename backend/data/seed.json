@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "dataset_version": "0.1.1-prototype",
+    "updated_at": "2026-06-12",
+    "review_status": "prototype_manual_review_required",
+    "primary_source": "PMDA electronic package inserts",
+    "source_url": "https://www.pmda.go.jp/PmdaSearch/iyakuSearch/",
+    "otc_source_url": "https://www.pmda.go.jp/PmdaSearch/otcSearch/"
+  },
+  "drugs": [
+    {"id":"pimozide","display_name":"ピモジド","generic_name":"ピモジド","category":"ingredient","aliases":["オーラップ"]},
+    {"id":"suvorexant","display_name":"スボレキサント","generic_name":"スボレキサント","category":"ingredient","aliases":[]},
+    {"id":"ergotamine","display_name":"エルゴタミン","generic_name":"エルゴタミン酒石酸塩","category":"ingredient","aliases":["エルゴタミン酒石酸塩"]},
+    {"id":"warfarin","display_name":"ワルファリン","generic_name":"ワルファリンカリウム","category":"ingredient","aliases":["ワルファリンK"]},
+    {"id":"digoxin","display_name":"ジゴキシン","generic_name":"ジゴキシン","category":"ingredient","aliases":["ジゴシン"]},
+    {"id":"carbamazepine","display_name":"カルバマゼピン","generic_name":"カルバマゼピン","category":"ingredient","aliases":[]},
+    {"id":"theophylline","display_name":"テオフィリン","generic_name":"テオフィリン","category":"ingredient","aliases":["テオドール","ユニフィル"]},
+    {"id":"midazolam","display_name":"ミダゾラム","generic_name":"ミダゾラム","category":"ingredient","aliases":["ドルミカム"]},
+    {"id":"tacrolimus","display_name":"タクロリムス","generic_name":"タクロリムス水和物","category":"ingredient","aliases":["グラセプター"]},
+    {"id":"cyclosporine","display_name":"シクロスポリン","generic_name":"シクロスポリン","category":"ingredient","aliases":["ネオーラル","サンディミュン"]},
+    {"id":"atorvastatin","display_name":"アトルバスタチン","generic_name":"アトルバスタチンカルシウム水和物","category":"ingredient","aliases":["リピトール"]},
+    {"id":"fexofenadine","display_name":"フェキソフェナジン","generic_name":"フェキソフェナジン塩酸塩","category":"ingredient","aliases":["アレグラ"]},
+    {"id":"lemborexant","display_name":"レンボレキサント","generic_name":"レンボレキサント","category":"ingredient","aliases":[]},
+    {"id":"aspirin","display_name":"アスピリン","generic_name":"アスピリン","category":"ingredient","aliases":[]},
+    {"id":"amoxicillin","display_name":"アモキシシリン","generic_name":"アモキシシリン水和物","category":"ingredient","aliases":["アモキシシリン水和物"]},
+    {"id":"cefditoren-pivoxil","display_name":"セフジトレン ピボキシル","generic_name":"セフジトレン ピボキシル","category":"ingredient","aliases":["セフジトレン","セフジトレンピボキシル"]},
+    {"id":"famotidine","display_name":"ファモチジン","generic_name":"ファモチジン","category":"ingredient","aliases":["ガスター"]},
+    {"id":"loxoprofen","display_name":"ロキソプロフェン","generic_name":"ロキソプロフェンナトリウム水和物","category":"ingredient","aliases":["ロキソニン"]},
+    {"id":"ibuprofen","display_name":"イブプロフェン","generic_name":"イブプロフェン","category":"ingredient","aliases":[]},
+    {"id":"acetaminophen","display_name":"アセトアミノフェン","generic_name":"アセトアミノフェン","category":"ingredient","aliases":["カロナール"]},
+    {"id":"caffeine","display_name":"無水カフェイン","generic_name":"無水カフェイン","category":"ingredient","aliases":["カフェイン"]},
+    {"id":"chlorpheniramine","display_name":"クロルフェニラミン","generic_name":"クロルフェニラミンマレイン酸塩","category":"ingredient","aliases":["d-クロルフェニラミンマレイン酸塩"]},
+    {"id":"dihydrocodeine","display_name":"ジヒドロコデイン","generic_name":"ジヒドロコデインリン酸塩","category":"ingredient","aliases":[]},
+    {"id":"guaifenesin","display_name":"グアイフェネシン","generic_name":"グアイフェネシン","category":"ingredient","aliases":[]},
+    {"id":"methylephedrine","display_name":"メチルエフェドリン","generic_name":"dl-メチルエフェドリン塩酸塩","category":"ingredient","aliases":[]},
+    {"id":"allylisopropylacetylurea","display_name":"アリルイソプロピルアセチル尿素","generic_name":"アリルイソプロピルアセチル尿素","category":"ingredient","aliases":[]},
+
+    {"id":"rx-warfarin","display_name":"ワーファリン錠","generic_name":"ワルファリンカリウム","category":"prescription","aliases":["ワーファリン錠1mg","ワーファリン錠5mg"],"ingredients":["warfarin"]},
+    {"id":"rx-belsomra","display_name":"ベルソムラ錠","generic_name":"スボレキサント","category":"prescription","aliases":["ベルソムラ錠10mg","ベルソムラ錠15mg","ベルソムラ錠20mg"],"ingredients":["suvorexant"]},
+    {"id":"rx-prograf","display_name":"プログラフカプセル","generic_name":"タクロリムス水和物","category":"prescription","aliases":["プログラフカプセル0.5mg","プログラフカプセル1mg"],"ingredients":["tacrolimus"]},
+    {"id":"rx-tegretol","display_name":"テグレトール錠","generic_name":"カルバマゼピン","category":"prescription","aliases":["テグレトール錠200mg"],"ingredients":["carbamazepine"]},
+    {"id":"rx-dayvigo","display_name":"デエビゴ錠","generic_name":"レンボレキサント","category":"prescription","aliases":["デエビゴ","デエビゴ錠2.5mg","デエビゴ錠5mg","デエビゴ錠10mg"],"ingredients":["lemborexant"]},
+    {"id":"rx-bayaspirin","display_name":"バイアスピリン錠100mg","generic_name":"アスピリン","category":"prescription","aliases":["バイアスピリン","バイアスピリン錠"],"ingredients":["aspirin"]},
+    {"id":"rx-meiact-ms","display_name":"メイアクトMS","generic_name":"セフジトレン ピボキシル","category":"prescription","aliases":["メイアクト","メイアクトMS錠","メイアクトMS錠100mg","メイアクトMS小児用細粒10%"],"ingredients":["cefditoren-pivoxil"]},
+    {"id":"rx-sawacillin","display_name":"サワシリン","generic_name":"アモキシシリン水和物","category":"prescription","aliases":["サワシリンカプセル125","サワシリンカプセル250","サワシリン細粒10%","サワシリン錠250"],"ingredients":["amoxicillin"]},
+
+    {"id":"otc-loxonin-s","display_name":"ロキソニンS","generic_name":null,"category":"otc","aliases":["ロキソニンSプレミアム"],"ingredients":["loxoprofen"]},
+    {"id":"otc-eve-a","display_name":"イブA錠","generic_name":null,"category":"otc","aliases":["イブA"],"ingredients":["ibuprofen","allylisopropylacetylurea","caffeine"]},
+    {"id":"otc-allegra-fx","display_name":"アレグラFX","generic_name":null,"category":"otc","aliases":["アレグラFXジュニア"],"ingredients":["fexofenadine"]},
+    {"id":"otc-gaster-10","display_name":"ガスター10","generic_name":null,"category":"otc","aliases":["ガスター10錠"],"ingredients":["famotidine"]},
+    {"id":"otc-pabron-gold-a","display_name":"パブロンゴールドA","generic_name":null,"category":"otc","aliases":["パブロンゴールドA錠","パブロンゴールドA微粒"],"ingredients":["acetaminophen","dihydrocodeine","methylephedrine","guaifenesin","chlorpheniramine","caffeine"]}
+  ],
+  "interactions": [
+    {"ingredient_id":"pimozide","severity":"contraindicated","effect":"QT延長、心室性不整脈などの重篤な心血管系副作用が生じるおそれがあります。","mechanism":"クラリスロマイシンによるCYP3A阻害でピモジドの血中濃度が上昇します。","action":"併用しないでください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"suvorexant","severity":"contraindicated","effect":"スボレキサントの作用が著しく増強し、過度の傾眠等が生じるおそれがあります。","mechanism":"強いCYP3A阻害によりスボレキサントの代謝が阻害されます。","action":"併用しないでください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"ergotamine","severity":"contraindicated","effect":"四肢虚血などの麦角中毒を生じるおそれがあります。","mechanism":"CYP3A阻害により麦角アルカロイドの血中濃度が上昇します。","action":"併用しないでください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"warfarin","severity":"caution","effect":"抗凝固作用が増強し、出血リスクが高まることがあります。","mechanism":"代謝阻害や腸内細菌叢への影響等によりワルファリン作用が増強する可能性があります。","action":"INR等を確認し、必要に応じて用量を調整してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"digoxin","severity":"caution","effect":"ジゴキシンの血中濃度が上昇し、中毒症状が生じることがあります。","mechanism":"腸内細菌叢やP糖蛋白への影響により吸収・排泄が変化する可能性があります。","action":"血中濃度や徐脈、悪心等を観察してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"carbamazepine","severity":"caution","effect":"カルバマゼピンの血中濃度上昇による中毒症状が生じることがあります。","mechanism":"CYP3A阻害によりカルバマゼピンの代謝が抑制されます。","action":"血中濃度と神経症状を観察し、必要に応じて減量してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"theophylline","severity":"caution","effect":"テオフィリンの血中濃度が上昇することがあります。","mechanism":"代謝阻害によりクリアランスが低下する可能性があります。","action":"血中濃度や悪心、振戦、頻脈等を観察してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"midazolam","severity":"caution","effect":"鎮静作用や呼吸抑制が増強するおそれがあります。","mechanism":"CYP3A阻害によりミダゾラムの代謝が抑制されます。","action":"投与量を検討し、呼吸・意識状態を十分に観察してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"tacrolimus","severity":"caution","effect":"タクロリムスの血中濃度が上昇し、腎障害等の毒性が増強することがあります。","mechanism":"CYP3A阻害によりタクロリムスの代謝が抑制されます。","action":"血中濃度を測定し、必要に応じて用量を調整してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"cyclosporine","severity":"caution","effect":"シクロスポリンの血中濃度が上昇し、腎障害等が生じることがあります。","mechanism":"CYP3A阻害によりシクロスポリンの代謝が抑制されます。","action":"血中濃度と腎機能を観察し、必要に応じて用量を調整してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"atorvastatin","severity":"caution","effect":"アトルバスタチンの血中濃度が上昇し、筋障害のリスクが高まることがあります。","mechanism":"CYP3A阻害によりアトルバスタチンの代謝が抑制されます。","action":"必要性を再評価し、筋症状やCK上昇を観察してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true},
+    {"ingredient_id":"fexofenadine","severity":"caution","effect":"フェキソフェナジンの血中濃度が上昇することがあります。","mechanism":"輸送体への影響により薬物動態が変化する可能性があります。","action":"副作用の発現に注意してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true}
+    ,{"ingredient_id":"lemborexant","severity":"caution","effect":"レンボレキサントの血中濃度が上昇し、傾眠等の副作用が増強するおそれがあります。","mechanism":"クラリスロマイシンによるCYP3A阻害でレンボレキサントの代謝が阻害されます。","action":"患者の状態を慎重に観察し、レンボレキサントの用量を含め最新の電子添文に従って対応してください。","source_url":"https://www.pmda.go.jp/PmdaSearch/iyakuSearch/","source_revision":"2026-06-12確認用シード","verified":true}
+  ]
+}
