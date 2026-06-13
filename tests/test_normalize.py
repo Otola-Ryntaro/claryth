@@ -16,7 +16,6 @@ def test_parse_multiple_inputs_and_deduplicate() -> None:
     ]
 
 
-def test_parse_limits_to_twenty_items() -> None:
+def test_parse_preserves_all_items_for_explicit_api_validation() -> None:
     text = "\n".join(f"薬剤{i}" for i in range(30))
-    assert len(parse_inputs(text, None)) == 20
-
+    assert len(parse_inputs(text, None)) == 30

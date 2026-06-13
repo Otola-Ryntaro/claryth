@@ -25,7 +25,7 @@ def parse_inputs(text: str | None, inputs: list[str] | None) -> list[str]:
         if key and key not in seen:
             seen.add(key)
             result.append(value)
-    return result[:20]
+    return result
 
 
 def normalize_name(value: str) -> str:
@@ -36,4 +36,3 @@ def normalize_name(value: str) -> str:
     value = SPACES_AND_PUNCT.sub("", value)
     value = DOSAGE_FORM.sub("", value)
     return value
-

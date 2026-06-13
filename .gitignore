@@ -5,19 +5,26 @@ __pycache__/
 backend/data/clarith.db
 backend/data/pmda_clarith.sqlite
 backend/data/top20_interactions.sqlite
+backend/data/top20_interactions.candidate.sqlite
 extension/node_modules/
 extension/dist/
 .runtime/
 .tmp_pytest/
 artifacts/pmda_clarith/
+artifacts/top20_review/
+artifacts/top20_promotion/
+artifacts/sbom/
 .DS_Store
 /database
+/release/
 
 # --- runtime/generated data (never publish) ---
 backend/data/pipeline_log.json
 backend/data/hospitals.json
 backend/data/dictionary.json
 backend/data/settings.json
+backend/data/release_manifest.json
+backend/data/release_manifest.sig
 
 # --- user feedback samples (never publish) ---
 docs/userfeadback_sample_check.md

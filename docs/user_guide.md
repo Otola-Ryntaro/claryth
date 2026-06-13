@@ -6,6 +6,8 @@
 
 判定と通常の薬剤名検索はPC内のSQLiteデータベースとRapidFuzzが行います。Ollamaは任意機能で、辞書では候補が見つからない誤字や略称について、DB内候補を最大3件に絞るためだけに使われます。
 
+現在同梱されるトップ20 DBは医学レビュー未完了です。この状態では画面に「臨床利用禁止」と表示され、相互作用判定はできません。レビュー状態が`clinically_reviewed`になった承認済みDBだけが判定に使われます。
+
 ## 2. 必要なもの
 
 - Windows 10またはWindows 11
@@ -27,18 +29,19 @@ Ollamaは必須ではありません。AI薬剤名補助を使う場合だけ、
 以下を1行ずつ実行します。
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
+python -m pip install uv==0.11.21
+uv sync --locked --extra test
 ```
 
 ### 3.3 Chrome拡張機能をビルドする
 
 ```powershell
 cd extension
-npm install
-npm run build
+npm ci
 cd ..
 ```
+
+拡張機能の最終ビルドは3.6のランチャー登録時に、API認証情報を含めて自動実行されます。
 
 ### 3.4 任意: Ollamaモデルを導入する
 
@@ -57,6 +60,17 @@ ollama pull qwen3.5:9b
 .\.venv\Scripts\python.exe scripts\build_pmda_top20_db.py --source database --dataset-date 2026-06-12
 ```
 
+ソースからDBを構築する開発環境では、続けてローカル署名を作成します。
+
+```powershell
+$expiresAt = (Get-Date).ToUniversalTime().AddDays(30).ToString("o")
+$manifestId = "local-$((Get-Date).ToString('yyyyMMdd-HHmmss'))"
+.\.venv\Scripts\python.exe scripts\generate_release_signing_key.py --force
+.\.venv\Scripts\python.exe scripts\sign_release_manifest.py --expires-at $expiresAt --manifest-id $manifestId
+```
+
+正式な配布パッケージでは署名済みDBとmanifestが同梱されるため、利用者がリリース秘密鍵を生成することはありません。
+
 ### 3.6 サイドパネルから起動できるようにする
 
 ```powershell
@@ -64,6 +78,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_la
 ```
 
 これは現在のWindowsユーザーへ`clarith://`ランチャーを登録します。管理者権限は不要です。
+
+同時に`.runtime/auth.json`へランダムなAPI認証情報を作成し、現在のWindowsユーザーだけがアクセスできるようにします。認証情報を更新する場合は次を実行し、その後Chromeで拡張機能を再読み込みします。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_launcher.ps1 -RotateToken
+```
 
 ### 3.7 Chromeへ読み込む
 
@@ -73,15 +93,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_la
 4. `extension/dist`フォルダを選択します。
 5. 拡張機能メニューから「くらりす」を固定します。
 
+拡張機能IDは配布manifestの公開鍵で固定されています。`extension/src/manifest.json`の`key`を変更すると正規APIへ接続できなくなるため、変更しないでください。
+
 ## 4. 毎回の使い方
 
 1. Chromeの「くらりす」アイコンを押してサイドパネルを開きます。
 2. 「判定APIを起動」を押します。
 3. Chromeが外部アプリを開く確認を表示したら、`くらりす Local Launcher`を許可します。
-4. 状態が「DB接続済み」になるまで待ちます。
+4. 画面上部の利用状態を確認します。未レビューDBでは「臨床利用禁止」、署名やDBに問題がある場合は「判定利用不可」と理由が表示されます。
 5. 画面最上部で相互作用を調べる基準薬を選びます。
 6. 確認したい併用薬を1行に1件ずつ入力します。
-7. 「相互作用を確認」を押します。
+7. 承認済みDBで「判定可能」と表示された場合だけ、「相互作用を確認」を押します。
 8. 薬剤候補が表示された場合は、正しいものを選択して判定します。
 
 入力例：
@@ -123,6 +145,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_la
 .\.venv\Scripts\python.exe -m backend.app
 ```
 
+「API認証情報がありません」または「接続先APIの認証に失敗しました」と表示される場合は、3.6の登録コマンドを再実行し、Chromeの拡張機能を再読み込みしてください。ポート8765を別アプリが使用している場合、ランチャーは起動を拒否します。
+
+「リクエストが集中しています」と表示される場合は、連続操作または同時処理の安全上限に達しています。表示された処理が終わるまで待ってから再試行してください。
+
 ### 「signal timed out」または時間切れになる
 
 1. 「再確認」を押します。
@@ -155,9 +181,12 @@ cd ..
 ## 8. 更新と安全確認
 
 - 画面下部でデータ版とレビュー状態を確認してください。
+- 判定前に画面上部が「判定利用可」「承認済みデータを確認しました」であることを確認してください。
 - 臨床利用前に施設の責任者または薬剤師がデータを承認してください。
 - 常にPMDAの最新電子添文も確認してください。
 - PMDA全件抽出候補はレビュー前のため、現在の画面判定へ自動反映されません。
+- `prototype_manual_review_required`または`pmda_extracted_review_required`と表示される場合、相互作用判定が無効になるのが正常です。
+- 「DB検証失敗」と表示される場合、署名manifest、DBハッシュ、SQLite完全性、スキーマ版、有効期限の検証に失敗しています。DBを使用せず、正規の配布物を再導入してください。
 
 ## 9. アンインストール
 

@@ -1,8 +1,8 @@
 """Pydantic contracts shared by the API and domain services."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 
 ResolutionStatus = Literal["resolved", "unresolved", "unsupported"]
@@ -14,11 +14,20 @@ InteractionStatus = Literal[
     "unsupported",
     "system_error",
 ]
+InputName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+DrugId = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9:_-]+$"),
+]
 
 
-class ResolveRequest(BaseModel):
+class WriteModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class ResolveRequest(WriteModel):
     text: str | None = Field(default=None, max_length=4000)
-    inputs: list[str] | None = Field(default=None, max_length=20)
+    inputs: list[InputName] | None = Field(default=None, max_length=20)
     use_llm: bool = False
 
     @model_validator(mode="after")
@@ -50,14 +59,14 @@ class ResolveResponse(BaseModel):
     items: list[ResolutionItem] = Field(default_factory=list)
 
 
-class CheckItem(BaseModel):
-    input_name: str
-    drug_id: str
+class CheckItem(WriteModel):
+    input_name: InputName
+    drug_id: DrugId
 
 
-class CheckRequest(BaseModel):
+class CheckRequest(WriteModel):
     items: list[CheckItem] = Field(min_length=1, max_length=20)
-    target_id: str = "clarithromycin"
+    target_id: DrugId = "clarithromycin"
 
 
 class TargetDrug(BaseModel):

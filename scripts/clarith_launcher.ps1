@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $RuntimeDir = Join-Path $ProjectRoot ".runtime"
+$AuthFile = Join-Path $RuntimeDir "auth.json"
 New-Item -ItemType Directory -Path $RuntimeDir -Force | Out-Null
 
 function Test-LocalPort {
@@ -20,6 +21,34 @@ function Test-LocalPort {
     }
     finally {
         $client.Dispose()
+    }
+}
+
+function Get-ClarithToken {
+    if (-not (Test-Path -LiteralPath $AuthFile)) {
+        throw "Clarith API credential was not found. Run install_windows_launcher.ps1."
+    }
+    $config = Get-Content -Raw -LiteralPath $AuthFile | ConvertFrom-Json
+    if (-not $config.apiToken) { throw "Clarith API credential is invalid." }
+    return [string]$config.apiToken
+}
+
+function Test-ClarithApi {
+    param([string]$Token)
+    try {
+        $health = Invoke-RestMethod `
+            -Uri "http://127.0.0.1:8765/health" `
+            -Headers @{ "X-Clarith-Token" = $Token } `
+            -TimeoutSec 2
+        return (
+            $health.app_id -eq "jp.clarith.local-api" -and
+            $health.protocol_version -eq 1 -and
+            $health.authenticated -eq $true -and
+            -not [string]::IsNullOrWhiteSpace([string]$health.startup_nonce)
+        )
+    }
+    catch {
+        return $false
     }
 }
 
@@ -42,7 +71,11 @@ function Find-Ollama {
 }
 
 function Start-ClarithApi {
-    if (Test-LocalPort 8765) { return }
+    $token = Get-ClarithToken
+    if (Test-ClarithApi $token) { return }
+    if (Test-LocalPort 8765) {
+        throw "Port 8765 is occupied by a service that failed Clarith authentication."
+    }
     $python = Find-Python
     Start-Process `
         -FilePath $python `
@@ -51,6 +84,11 @@ function Start-ClarithApi {
         -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $RuntimeDir "api.out.log") `
         -RedirectStandardError (Join-Path $RuntimeDir "api.err.log")
+    foreach ($attempt in 1..20) {
+        Start-Sleep -Milliseconds 250
+        if (Test-ClarithApi $token) { return }
+    }
+    throw "Clarith API did not pass authenticated health check after startup."
 }
 
 function Start-ClarithOllama {

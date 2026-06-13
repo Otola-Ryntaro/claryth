@@ -1,7 +1,9 @@
 // Side-panel controller: resolve names, require confirmation, then request DB checks.
 import type { Candidate, CheckResult, InteractionStatus, ResolutionItem, TargetDrug } from "./types.js";
+import { clinicalStatusContent, reviewStatusLabel, type ClinicalUiState } from "./clinical-status.js";
 
 const API_BASE = "http://127.0.0.1:8765";
+const TOKEN_HEADER = "X-Clarith-Token";
 const byId = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing element: ${id}`);
@@ -17,6 +19,10 @@ const confirmButton = byId<HTMLButtonElement>("confirm-button");
 const healthButton = byId<HTMLButtonElement>("health-button");
 const statusText = byId<HTMLSpanElement>("status-text");
 const datasetMeta = byId<HTMLParagraphElement>("dataset-meta");
+const clinicalWarning = byId<HTMLElement>("clinical-warning");
+const clinicalStatusLabel = byId<HTMLElement>("clinical-status-label");
+const clinicalStatusTitle = byId<HTMLElement>("clinical-status-title");
+const clinicalStatusMessage = byId<HTMLElement>("clinical-status-message");
 const errorBox = byId<HTMLElement>("error-box");
 const candidateSection = byId<HTMLElement>("candidate-section");
 const candidateList = byId<HTMLElement>("candidate-list");
@@ -41,7 +47,11 @@ const llmControls = byId<HTMLElement>("llm-controls");
 let resolutions: ResolutionItem[] = [];
 let targets: TargetDrug[] = [];
 let projectRoot = "<くらりすフォルダ>";
+let apiToken = "";
+let expectedAppId = "jp.clarith.local-api";
+let expectedProtocolVersion = 1;
 let apiConnected = false;
+let clinicalReady = false;
 let ollamaConnected = false;
 const selectedCandidates = new Map<string, Candidate>();
 
@@ -59,7 +69,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        "Content-Type": "application/json",
+        [TOKEN_HEADER]: apiToken,
+        ...(init?.headers ?? {}),
+      },
       signal: AbortSignal.timeout(25000),
     });
   } catch (error) {
@@ -92,8 +106,9 @@ function clearError(): void {
 }
 
 function setBusy(busy: boolean): void {
-  checkButton.disabled = busy;
-  confirmButton.disabled = busy;
+  const unresolvedCount = resolutions.filter((item) => item.status === "unresolved").length;
+  checkButton.disabled = busy || !clinicalReady;
+  confirmButton.disabled = busy || !clinicalReady || selectedCandidates.size !== unresolvedCount;
   checkButton.textContent = busy ? "確認しています..." : "相互作用を確認";
 }
 
@@ -106,12 +121,34 @@ function setRuntimeState(
   element.className = `runtime-state ${state}`;
 }
 
+function setClinicalStatus(
+  state: ClinicalUiState,
+  label: string,
+  title: string,
+  message: string,
+): void {
+  clinicalWarning.className = `clinical-status ${state}`;
+  clinicalWarning.setAttribute("role", state === "ready" ? "status" : "alert");
+  clinicalWarning.setAttribute("aria-live", state === "ready" ? "polite" : "assertive");
+  clinicalStatusLabel.textContent = label;
+  clinicalStatusTitle.textContent = title;
+  clinicalStatusMessage.textContent = message;
+}
+
 async function loadProjectConfig(): Promise<void> {
   try {
     const response = await fetch("project-config.json");
     if (response.ok) {
-      const config = (await response.json()) as { projectRoot?: string };
+      const config = (await response.json()) as {
+        projectRoot?: string;
+        apiToken?: string;
+        appId?: string;
+        protocolVersion?: number;
+      };
       if (config.projectRoot) projectRoot = config.projectRoot;
+      if (config.apiToken) apiToken = config.apiToken;
+      if (config.appId) expectedAppId = config.appId;
+      if (config.protocolVersion) expectedProtocolVersion = config.protocolVersion;
     }
   } catch {
     // The placeholder remains useful for source-only or non-built previews.
@@ -182,22 +219,73 @@ async function refreshHealth(): Promise<void> {
       review_status: string | null;
       top20_database: string;
       top20_review_status: string | null;
+      clinical_ready: boolean;
+      clinical_source: string;
+      app_id: string;
+      protocol_version: number;
+      startup_nonce: string;
+      auth_configured: boolean;
+      authenticated: boolean;
+      integrity_ok: boolean;
+      integrity_reason: string;
+      release_manifest_id: string | null;
+      release_manifest_expires_at: string | null;
     }>("/health");
+    if (
+      health.app_id !== expectedAppId ||
+      health.protocol_version !== expectedProtocolVersion ||
+      !health.auth_configured ||
+      !health.authenticated ||
+      !health.startup_nonce
+    ) {
+      throw new Error("接続先APIの認証に失敗しました。");
+    }
     apiConnected = health.database === "ok";
+    clinicalReady = health.clinical_ready && health.integrity_ok;
     healthButton.classList.remove("offline");
     healthButton.classList.add("online");
-    statusText.textContent = "DB接続済み";
-    setRuntimeState(apiRuntimeStatus, apiConnected ? "起動済み" : "DBエラー", apiConnected ? "ready" : "error");
-    datasetMeta.textContent = `シード ${health.dataset_version ?? "不明"} / Top20 ${health.top20_database}・${health.top20_review_status ?? "状態不明"}`;
+    statusText.textContent = clinicalReady ? "判定可能" : health.integrity_ok ? "評価版DB" : "DB検証失敗";
+    setRuntimeState(
+      apiRuntimeStatus,
+      !apiConnected ? "DBエラー" : clinicalReady ? "判定可能" : health.integrity_ok ? "臨床利用不可" : "完全性エラー",
+      !apiConnected || !health.integrity_ok ? "error" : clinicalReady ? "ready" : "warning",
+    );
+    const clinicalStatus = clinicalStatusContent(
+      apiConnected,
+      clinicalReady,
+      health.integrity_ok,
+      health.integrity_reason,
+    );
+    setClinicalStatus(
+      clinicalStatus.state,
+      clinicalStatus.label,
+      clinicalStatus.title,
+      clinicalStatus.message,
+    );
+    setBusy(false);
+    datasetMeta.textContent = `シード ${health.dataset_version ?? "不明"} / Top20 ${health.top20_database === "ok" ? "接続済み" : "利用不可"} / ${reviewStatusLabel(health.top20_review_status)}`;
     if (llmToggle.checked) await refreshLlmStatus();
-    else runtimeMessage.textContent = "AI補助なしで一般名・販売名・誤字候補を検索できます。";
+    else runtimeMessage.textContent = clinicalReady
+      ? "AI補助なしで一般名・販売名・誤字候補を検索できます。"
+      : !health.integrity_ok
+        ? `DB完全性検証に失敗したため判定を停止しています: ${health.integrity_reason}`
+        : "医学レビュー未完了のため相互作用判定を停止しています。";
   } catch {
     apiConnected = false;
+    clinicalReady = false;
     ollamaConnected = false;
     healthButton.classList.remove("online");
     healthButton.classList.add("offline");
     statusText.textContent = "API未接続";
     setRuntimeState(apiRuntimeStatus, "停止中", "error");
+    const clinicalStatus = clinicalStatusContent(false, false, false);
+    setClinicalStatus(
+      clinicalStatus.state,
+      clinicalStatus.label,
+      clinicalStatus.title,
+      clinicalStatus.message,
+    );
+    setBusy(false);
     warmupButton.disabled = true;
     runtimeMessage.textContent = "「判定APIを起動」を押してください。初回だけランチャー登録が必要です。";
     datasetMeta.textContent = "ローカルAPIを起動してください。";
@@ -355,13 +443,12 @@ function createResultCard(result: CheckResult): HTMLElement {
     const group = document.createElement("div");
     const dt = document.createElement("dt");
     const dd = document.createElement("dd");
-    const link = document.createElement("a");
+    const link = document.createElement("button");
     dt.textContent = "該当箇所";
-    link.className = "source-link evidence-link";
-    link.href = result.evidence_url;
-    link.target = "_blank";
-    link.rel = "noreferrer";
+    link.className = "source-link evidence-link link-button";
+    link.type = "button";
     link.textContent = "該当相互作用をすぐ表示";
+    link.addEventListener("click", () => void openAuthenticatedEvidence(result.evidence_url!));
     dd.append(link);
     group.append(dt, dd);
     detailGrid.append(group);
@@ -392,6 +479,25 @@ function createResultCard(result: CheckResult): HTMLElement {
   details.append(summary, detailGrid);
   card.append(main, details);
   return card;
+}
+
+async function openAuthenticatedEvidence(url: string): Promise<void> {
+  try {
+    const response = await fetch(url, {
+      headers: { [TOKEN_HEADER]: apiToken },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error(`APIエラー (${response.status})`);
+    const blobUrl = URL.createObjectURL(await response.blob());
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      await chrome.tabs.create({ url: blobUrl, active: true });
+    } else {
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+    }
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "根拠ページを開けませんでした。");
+  }
 }
 
 function createUnsupportedCard(item: ResolutionItem): HTMLElement {
@@ -452,6 +558,10 @@ async function resolveAndCheck(): Promise<void> {
   clearError();
   resultSection.classList.add("hidden");
   candidateSection.classList.add("hidden");
+  if (!clinicalReady) {
+    showError("判定データは医学レビュー未完了のため、臨床判定には使用できません。");
+    return;
+  }
   if (!input.value.trim()) {
     showError("薬剤名を1件以上入力してください。");
     return;
@@ -518,5 +628,14 @@ llmToggle.addEventListener("change", () => {
   else runtimeMessage.textContent = "AI補助なしで一般名・販売名・誤字候補を検索できます。";
 });
 
-void loadProjectConfig();
-void refreshHealth().then(() => loadTargets());
+async function initialize(): Promise<void> {
+  await loadProjectConfig();
+  if (!apiToken) {
+    showError("API認証情報がありません。初回設定の登録コマンドを実行してください。");
+    return;
+  }
+  await refreshHealth();
+  if (apiConnected) await loadTargets();
+}
+
+void initialize();

@@ -6,6 +6,14 @@ import os
 
 
 ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_EXTENSION_ID = "nepmbhaakdinmdacjlkplkoghmoifpkk"
+
+
+def _allowed_origins() -> tuple[str, ...]:
+    configured = os.getenv("CLARITH_ALLOWED_ORIGINS")
+    if configured:
+        return tuple(value.strip() for value in configured.split(",") if value.strip())
+    return (f"chrome-extension://{DEFAULT_EXTENSION_ID}",)
 
 
 @dataclass(frozen=True)
@@ -24,6 +32,26 @@ class Settings:
     )
     ollama_url: str = os.getenv("CLARITH_OLLAMA_URL", "http://127.0.0.1:11434")
     ollama_model: str = os.getenv("CLARITH_OLLAMA_MODEL", "qwen3.5:9b")
+    auth_config_path: Path = Path(
+        os.getenv("CLARITH_AUTH_CONFIG", ROOT / ".runtime" / "auth.json")
+    )
+    api_token: str | None = os.getenv("CLARITH_API_TOKEN")
+    release_manifest_path: Path = Path(
+        os.getenv("CLARITH_RELEASE_MANIFEST", ROOT / "backend" / "data" / "release_manifest.json")
+    )
+    release_signature_path: Path = Path(
+        os.getenv("CLARITH_RELEASE_SIGNATURE", ROOT / "backend" / "data" / "release_manifest.sig")
+    )
+    release_public_key_path: Path = Path(
+        os.getenv("CLARITH_RELEASE_PUBLIC_KEY", ROOT / "backend" / "app" / "release_public_key.pem")
+    )
+    product_mode: bool = os.getenv("CLARITH_MODE", "production").lower() == "production"
+    allowed_origins: tuple[str, ...] = _allowed_origins()
+    max_request_body_bytes: int = int(os.getenv("CLARITH_MAX_REQUEST_BODY_BYTES", "32768"))
+    max_concurrent_requests: int = int(os.getenv("CLARITH_MAX_CONCURRENT_REQUESTS", "8"))
+    max_concurrent_expensive_requests: int = int(
+        os.getenv("CLARITH_MAX_CONCURRENT_EXPENSIVE_REQUESTS", "2")
+    )
     api_host: str = "127.0.0.1"
     api_port: int = int(os.getenv("CLARITH_API_PORT", "8765"))
     fuzzy_limit: int = 5

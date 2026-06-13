@@ -14,8 +14,8 @@
           <h1>くらりす</h1>
           <p class="subtitle">くすりの らくな リスク スクリーニング</p>
         </div>
-        <button id="health-button" class="status-pill" type="button" aria-label="接続状態を再確認">
-          <span id="status-dot" class="status-dot"></span>
+        <button id="health-button" class="status-pill" type="button" aria-label="接続状態を再確認" aria-describedby="clinical-status-message">
+          <span id="status-dot" class="status-dot" aria-hidden="true"></span>
           <span id="status-text">接続確認中</span>
         </button>
       </header>
@@ -23,6 +23,12 @@
       <section class="notice" aria-label="重要な注意">
         <strong>医療者向け補助ツール</strong>
         <span>最新の電子添文と患者背景を必ず確認してください。</span>
+      </section>
+
+      <section id="clinical-warning" class="clinical-status pending" role="status" aria-live="polite" aria-atomic="true">
+        <p id="clinical-status-label" class="clinical-status-label">利用状態を確認中</p>
+        <strong id="clinical-status-title">判定APIとデータを確認しています</strong>
+        <span id="clinical-status-message">確認が終わるまで相互作用判定は利用できません。</span>
       </section>
 
       <section class="panel input-panel">
@@ -34,8 +40,8 @@
           <p id="target-help" class="target-help">マクロライド系抗菌薬 / 既定</p>
         </div>
         <label for="drug-input">確認する薬剤</label>
-        <p class="field-help">一般名・販売名・OTC商品名を、改行または読点で最大20件入力</p>
-        <textarea id="drug-input" rows="7" placeholder="例：&#10;ワーファリン錠1mg&#10;ベルソムラ&#10;ロキソニンS"></textarea>
+        <p id="drug-input-help" class="field-help">一般名・販売名・OTC商品名を、改行または読点で最大20件入力</p>
+        <textarea id="drug-input" rows="7" aria-describedby="drug-input-help clinical-status-message" placeholder="例：&#10;ワーファリン錠1mg&#10;ベルソムラ&#10;ロキソニンS"></textarea>
         <div class="examples" aria-label="入力例">
           <button class="example-chip" type="button" data-value="ワーファリン錠1mg">ワーファリン</button>
           <button class="example-chip" type="button" data-value="ベルソムラ">ベルソムラ</button>

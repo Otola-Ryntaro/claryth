@@ -13,6 +13,7 @@ from .normalize import normalize_name
 
 
 SCHEMA = """
+PRAGMA user_version = 1;
 CREATE TABLE IF NOT EXISTS metadata (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

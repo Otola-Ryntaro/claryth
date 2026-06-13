@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "くらりす - 薬剤相互作用チェッカー",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkuh1HHqvUqfTmo8F5sy0t28soq76RGJ9BUezxOftMwaEJH8lxEGqKSS1iDBWfN3w8voh2Jrg0ZwL+GAQ1YNg0a8AZppSa8Bt1YmrK1CYqiv/H4ENz0TC4ipJ8JEMM3Mn3LOBXvNYxqIQpHdwGT2lN+rAO1sCV5AwuXfGuMRVh/3CNhicL5199luH+3SCa+MeMxhZFZmK9GL6j50PCw+A47nBRGT2A4lbjkGxkHMtczVrAVPA1xsjgORykruZ0KldZ8J58v10Faz6bF0KsqF+ssS6089Ma2k2LHxJ4DHlOhF6ppdW53mfx5ZNtc2M7Mk8j1LQ2oZWLtyKxD6Ha0ohbwIDAQAB",
   "description": "くすりの、らくな、リスクスクリーニング。代表20成分との相互作用をローカルDBで確認します。",
   "permissions": ["sidePanel"],
   "host_permissions": ["http://127.0.0.1:8765/*"],

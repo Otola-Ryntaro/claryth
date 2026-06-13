@@ -30,6 +30,20 @@ def entity_id(generic_name: str) -> str:
     return f"pmda:{digest}"
 
 
+def interaction_hash(document_sha256: str, row: object) -> str:
+    payload = "\x1f".join(
+        (
+            document_sha256,
+            row.section,
+            row.severity,
+            row.drug_text,
+            row.effect_text,
+            row.mechanism_text,
+        )
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
 def build_database(source_root: Path, output_path: Path, dataset_date: str, progress_every: int = 1000) -> dict[str, object]:
     started = time.perf_counter()
     paths = sorted(source_root.rglob("*.xml"))
@@ -95,11 +109,19 @@ def build_database(source_root: Path, output_path: Path, dataset_date: str, prog
                 )
             connection.executemany(
                 """INSERT INTO interactions(
-                     document_id, section, severity, raw_drug_text,
+                     document_id, content_hash, section, severity, raw_drug_text,
                      raw_effect_text, raw_mechanism_text
-                   ) VALUES (?, ?, ?, ?, ?, ?)""",
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 [
-                    (document_id, row.section, row.severity, row.drug_text, row.effect_text, row.mechanism_text)
+                    (
+                        document_id,
+                        interaction_hash(digest, row),
+                        row.section,
+                        row.severity,
+                        row.drug_text,
+                        row.effect_text,
+                        row.mechanism_text,
+                    )
                     for row in data.interactions
                 ],
             )
@@ -147,7 +169,11 @@ def build_database(source_root: Path, output_path: Path, dataset_date: str, prog
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=Path("database"))
-    parser.add_argument("--output", type=Path, default=Path("backend/data/top20_interactions.sqlite"))
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("backend/data/top20_interactions.candidate.sqlite"),
+    )
     parser.add_argument("--dataset-date", default=datetime.now().date().isoformat())
     parser.add_argument("--progress-every", type=int, default=1000)
     args = parser.parse_args()

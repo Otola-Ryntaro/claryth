@@ -1,11 +1,16 @@
 # くらりす
 
+現在のアプリバージョンは`0.2.0`です。変更内容は[CHANGELOG](CHANGELOG.md)を参照してください。
+
 **く**すりの **ら**くな **リ**スク **ス**クリーニング、略して「くらりす」です。
 
 クラリスロマイシンを含む「相互作用検索が複雑な代表20成分」と、複数の処方薬・OTC医薬品との相互作用を確認する、医療者・院内利用向けのChrome拡張機能です。判定APIとデータベースはPC内で動作し、Ollamaは任意の薬剤名候補補助としてだけ利用できます。
 
 > [!WARNING]
 > 本ツールは医療判断を代替しません。「記載なし」は相互作用がないことの保証ではありません。必ず最新の電子添文、患者背景、用量、腎・肝機能を確認してください。
+
+> [!CAUTION]
+> 現在同梱されるデータは医学レビュー未完了です。レビュー状態が`clinically_reviewed`になるまで、APIと拡張機能は相互作用判定を停止します。現状は開発・デモ・非臨床評価にだけ使用してください。
 
 ## 主な機能
 
@@ -19,6 +24,10 @@
 - 標準動作はLLMなし。Ollamaは辞書で未解決の薬剤名候補提示だけを任意で補助
 - 相互作用、重大度、根拠、説明はLLMで生成せず、SQLiteの収載内容だけを表示
 - APIは`127.0.0.1:8765`、Ollamaは`127.0.0.1:11434`だけを使用
+- 拡張機能とAPIはユーザー単位の共有トークン、固定アプリID、プロトコル版で接続先を確認
+- 起動時にEd25519署名manifest、DBのSHA-256、SQLite完全性、スキーマ版、有効期限を検証
+- APIは固定された正規拡張Originだけを許可し、入力サイズ・同時実行数・呼出頻度を制限
+- 画面上部へ判定利用可否と理由を常時表示し、署名不正・期限切れ・未レビュー時は操作を停止
 
 ## はじめる
 
@@ -27,20 +36,41 @@
 Windows PowerShellでプロジェクトフォルダを開き、次を順に実行します。
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
+python -m pip install uv==0.11.21
+uv sync --locked --extra test
 
 cd extension
-npm install
-npm run build
+npm ci
 cd ..
 
 .\.venv\Scripts\python.exe scripts\init_db.py
 .\.venv\Scripts\python.exe scripts\build_pmda_top20_db.py --source database --dataset-date 2026-06-12
+$expiresAt = (Get-Date).ToUniversalTime().AddDays(30).ToString("o")
+$manifestId = "local-$((Get-Date).ToString('yyyyMMdd-HHmmss'))"
+.\.venv\Scripts\python.exe scripts\generate_release_signing_key.py --force
+.\.venv\Scripts\python.exe scripts\sign_release_manifest.py --expires-at $expiresAt --manifest-id $manifestId
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_launcher.ps1
 ```
 
+上の鍵生成はソースからDBを再構築するローカル開発用です。正式配布では、オフライン管理したリリース秘密鍵で作成したDB、`release_manifest.json`、`release_manifest.sig`、対応する公開鍵を同梱し、利用PCへ秘密鍵を配布しません。署名、ハッシュ、SQLite完全性、スキーマ版、有効期限のいずれかが不正な場合、APIは相互作用判定を停止します。
+
+ランチャー登録スクリプトは、ユーザー単位のAPI認証トークンを`.runtime/auth.json`へ生成し、Windows ACLを現在ユーザーだけへ制限したうえで拡張機能をビルドします。トークンを更新する場合は`-RotateToken`を付け、Chromeの拡張機能管理画面で「くらりす」を再読み込みしてください。
+
+Python依存は`uv.lock`内のバージョンと配布ファイルSHA-256へ固定されています。Chrome拡張依存は`package-lock.json`から`npm ci`で再現します。リリース検証CIは両方の監査とCycloneDX SBOM生成を実行します。
+
+固定評価版bundleは次のように作成・検証できます。現在のDBは医学レビュー未完了のため、`--allow-evaluation`なしの製品版bundle作成は意図的に失敗します。製品版出荷には[リリース運用手順](docs/release_operations.md)の全ゲートを満たす必要があります。
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_release_bundle.py --release-id <ID> --allow-evaluation
+.\.venv\Scripts\python.exe scripts\verify_release_bundle.py release\clarith-evaluation-<ID>.zip `
+  --expected-public-key-sha256 <別経路で受領した公開鍵SHA-256>
+```
+
 Chromeで`chrome://extensions`を開き、デベロッパーモードを有効にして、`extension/dist`を「パッケージ化されていない拡張機能」として読み込みます。その後、「くらりす」のサイドパネルで「判定APIを起動」を押します。
+
+APIは既定で製品モードとして起動し、`/docs`、`/redoc`、`/openapi.json`を公開しません。ローカル開発でAPI仕様画面が必要な場合だけ、起動前に`$env:CLARITH_MODE = "development"`を設定してください。
+
+現在のトップ20 DBは`pmda_extracted_review_required`のため、起動後も画面上部に「臨床利用禁止」「医学レビューが完了していません」と表示され、相互作用判定ボタンは無効です。署名不正、期限切れ、DB変更を検出した場合は「DB完全性検証に失敗しました」と理由を表示します。
 
 AI薬剤名補助を使う場合だけ、別途Ollamaを導入して`ollama pull qwen3.5:9b`を実行し、サイドパネルの「AI薬剤名補助を使う」をオンにします。オフの場合、OllamaへのHTTP通信は行いません。
 
@@ -86,7 +116,19 @@ PMDA検索画面の自動巡回は行いません。PMDAは検索ページの自
 .\.venv\Scripts\python.exe scripts\build_pmda_top20_db.py --source database --dataset-date 2026-06-12
 ```
 
-抽出候補は医学レビュー前に画面判定用DBへ反映しない設計です。
+抽出候補は医学レビュー前に臨床判定へ使用しない設計です。未レビューDBを検索・レビュー用に配置しても、`POST /v1/check`は503で停止します。レビュー済みランタイムDBへの反映手順は[016 レビュー済み候補の本番DB反映](docs/016_pmda_runtime_promotion.md)で管理しています。
+
+DB再構築後は、医学レビュー状態にかかわらずリリースmanifestの再署名が必要です。レビュー状態が`clinically_reviewed`の場合、署名時にレビュー者、レビュー日時、承認IDをDB metadataまたは`sign_release_manifest.py`の対応オプションで指定しなければ署名処理が失敗します。
+
+トップ20抽出結果は`top20_interactions.candidate.sqlite`へ作成されます。候補DBからCSVを出力し、承認済みCSVを取り込んでから、アプリが読む`top20_interactions.sqlite`へ昇格します。候補の欠落、内容変更、承認情報不足、未対応の薬剤名マスターがある場合はfail-closedで停止します。
+
+```powershell
+.\.venv\Scripts\python.exe scripts\top20_review.py export
+.\.venv\Scripts\python.exe scripts\top20_review.py import
+.\.venv\Scripts\python.exe scripts\top20_review.py promote
+```
+
+詳しい入力列と生成レポートは[016 レビュー済み候補の本番DB反映](docs/016_pmda_runtime_promotion.md)を参照してください。医学的判断を自動承認するコマンドはありません。
 
 ## トップ20検索の制約
 

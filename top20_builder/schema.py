@@ -5,6 +5,7 @@ import sqlite3
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
+PRAGMA user_version = 2;
 CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE documents (
   id INTEGER PRIMARY KEY,
@@ -48,15 +49,23 @@ CREATE TABLE target_documents (
 CREATE TABLE interactions (
   id INTEGER PRIMARY KEY,
   document_id INTEGER NOT NULL REFERENCES documents(id),
+  content_hash TEXT NOT NULL UNIQUE,
   section TEXT NOT NULL,
   severity TEXT NOT NULL,
   raw_drug_text TEXT NOT NULL,
   raw_effect_text TEXT,
-  raw_mechanism_text TEXT
+  raw_mechanism_text TEXT,
+  review_status TEXT NOT NULL DEFAULT 'candidate'
+    CHECK(review_status IN ('candidate','reviewed','rejected')),
+  reviewer TEXT,
+  reviewed_at TEXT,
+  approval_id TEXT,
+  review_note TEXT
 );
 CREATE INDEX idx_aliases_normalized ON aliases(normalized_alias);
 CREATE INDEX idx_entity_documents_drug ON entity_documents(drug_id);
 CREATE INDEX idx_interactions_document ON interactions(document_id);
+CREATE INDEX idx_interactions_review_status ON interactions(review_status);
 CREATE INDEX idx_target_documents_target ON target_documents(target_id);
 """
 

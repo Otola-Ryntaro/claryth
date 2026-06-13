@@ -15,6 +15,7 @@ from .checker import SEVERITY_RANK
 from .config import settings
 from .models import CheckResult, DrugCandidate, IngredientResult, TargetDrug
 from .normalize import normalize_name
+from .review import is_clinically_reviewed
 
 
 PMDA_PDF_BASE = "https://www.pmda.go.jp/PmdaSearch/iyakuDetail/ResultDataSetPDF"
@@ -56,6 +57,24 @@ def metadata() -> dict[str, str]:
         return {}
     with connect_top20() as connection:
         return dict(connection.execute("SELECT key, value FROM metadata"))
+
+
+def clinically_ready() -> bool:
+    if not available():
+        return False
+    try:
+        return is_clinically_reviewed(metadata().get("review_status"))
+    except sqlite3.DatabaseError:
+        return False
+
+
+def require_clinically_ready() -> None:
+    if not available():
+        raise RuntimeError("トップ20 PMDAデータベースがありません。")
+    if not clinically_ready():
+        raise RuntimeError(
+            "トップ20データは医学レビュー未完了のため、臨床判定には使用できません。"
+        )
 
 
 def _candidate(row: sqlite3.Row, score: float) -> DrugCandidate:
@@ -247,8 +266,7 @@ def _matching_evidence(connection: sqlite3.Connection, target_id: str, entity_id
 
 
 def check(runtime: sqlite3.Connection, input_name: str, drug_id: str, target_id: str) -> CheckResult:
-    if not available():
-        raise RuntimeError("トップ20 PMDAデータベースがありません")
+    require_clinically_ready()
     entity_ids, runtime_drug = _entity_ids(runtime, drug_id)
     with connect_top20() as connection:
         target = connection.execute("SELECT * FROM targets WHERE id = ?", (target_id,)).fetchone()

@@ -3,25 +3,25 @@
 from contextlib import asynccontextmanager
 import html
 import asyncio
-from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .auth import APP_ID, PROTOCOL_VERSION, STARTUP_NONCE, TOKEN_HEADER
+from .auth import configured_token, token_matches
 from .checker import SEVERITY_RANK, check_drug
 from .config import settings
 from .database import connect, ensure_database, metadata
+from .integrity import IntegrityResult, verify_release_manifest
 from .models import CheckRequest, CheckResponse, ResolveRequest, ResolveResponse, TargetDrug
 from .normalize import parse_inputs
 from .ollama_client import ollama_status, suggest_drug_ids, warmup_ollama
+from .review import is_clinically_reviewed
+from .security import RequestGuard, RequestSizeLimitMiddleware
 from .resolver import llm_candidate_pool, resolve_one
-from .top20 import available as top20_available
-from .top20 import check as check_top20
-from .top20 import evidence as get_top20_evidence
-from .top20 import list_targets
-from .top20 import metadata as top20_metadata
+from . import top20
 
 
 DISCLAIMER = (
@@ -29,44 +29,81 @@ DISCLAIMER = (
     "必ず最新の電子添文、患者背景、用量、腎・肝機能を確認してください。"
 )
 
+release_integrity = IntegrityResult(False, "release integrity has not been verified")
+request_guard = RequestGuard(
+    max_concurrent=settings.max_concurrent_requests,
+    max_expensive=settings.max_concurrent_expensive_requests,
+    rate_limits={"/v1/resolve": 60, "/v1/check": 120, "/v1/ollama/warmup": 5},
+)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global release_integrity
     ensure_database()
+    release_integrity = verify_release_manifest()
     yield
 
 
-app = FastAPI(title="Clarith Local API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Clarith Local API",
+    version="0.1.0",
+    lifespan=lifespan,
+    debug=False,
+    docs_url=None if settings.product_mode else "/docs",
+    redoc_url=None if settings.product_mode else "/redoc",
+    openapi_url=None if settings.product_mode else "/openapi.json",
+)
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["127.0.0.1", "localhost", "testserver"],
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(settings.allowed_origins),
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", TOKEN_HEADER],
+    allow_credentials=False,
 )
+app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_body_bytes)
 
 
 @app.middleware("http")
 async def restrict_browser_origins(request: Request, call_next):
     origin = request.headers.get("origin")
-    parsed = urlparse(origin) if origin else None
-    allowed = origin is None or (
-        parsed is not None
-        and (
-            parsed.scheme == "chrome-extension"
-            or (parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"})
-        )
-    )
+    allowed = origin is None or origin in settings.allowed_origins
     if not allowed:
         return JSONResponse(status_code=403, content={"detail": "許可されていないOriginです"})
-    return await call_next(request)
+    if request.method != "OPTIONS" and request.url.path != "/health":
+        expected = configured_token()
+        if expected is None:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "ローカルAPI認証が未設定です。ランチャーを再登録してください。"},
+            )
+        provided = request.headers.get(TOKEN_HEADER)
+        if provided is None:
+            return JSONResponse(status_code=401, content={"detail": "API認証トークンが必要です。"})
+        if not token_matches(provided):
+            return JSONResponse(status_code=403, content={"detail": "API認証トークンが一致しません。"})
+    lease = None
+    if request.method != "OPTIONS" and request.url.path.startswith("/v1/"):
+        lease, retry_after = request_guard.try_enter(request.url.path)
+        if lease is None:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "リクエストが集中しています。少し待って再試行してください。"},
+                headers={"Retry-After": str(retry_after)},
+            )
+    try:
+        return await call_next(request)
+    finally:
+        if lease is not None:
+            request_guard.release(lease)
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health(request: Request) -> dict[str, object]:
     try:
         with connect() as connection:
             data = metadata(connection)
@@ -75,13 +112,37 @@ async def health() -> dict[str, object]:
     except Exception:
         data = {}
         db_ok = False
+    top20_ok = top20.available()
+    try:
+        top20_data = top20.metadata() if top20_ok else {}
+    except Exception:
+        top20_data = {}
+        top20_ok = False
+    clinical_source = "top20" if top20_ok else "seed"
+    review_ready = (
+        top20.clinically_ready()
+        if top20_ok
+        else db_ok and is_clinically_reviewed(data.get("review_status"))
+    )
+    clinical_ready = review_ready and release_integrity.ok
     return {
+        "app_id": APP_ID,
+        "protocol_version": PROTOCOL_VERSION,
+        "startup_nonce": STARTUP_NONCE,
+        "auth_configured": configured_token() is not None,
+        "authenticated": token_matches(request.headers.get(TOKEN_HEADER)),
         "api": "ok",
         "database": "ok" if db_ok else "error",
         "dataset_version": data.get("dataset_version"),
         "review_status": data.get("review_status"),
-        "top20_database": "ok" if top20_available() else "unavailable",
-        "top20_review_status": top20_metadata().get("review_status"),
+        "top20_database": "ok" if top20_ok else "unavailable",
+        "top20_review_status": top20_data.get("review_status"),
+        "clinical_ready": clinical_ready,
+        "clinical_source": clinical_source,
+        "integrity_ok": release_integrity.ok,
+        "integrity_reason": release_integrity.reason,
+        "release_manifest_id": release_integrity.manifest_id,
+        "release_manifest_expires_at": release_integrity.expires_at,
     }
 
 
@@ -99,16 +160,19 @@ def dataset() -> dict[str, str]:
 
 @app.get("/v1/targets", response_model=list[TargetDrug])
 def targets() -> list[TargetDrug]:
-    values = list_targets()
+    values = top20.list_targets()
     if not values:
         raise HTTPException(status_code=503, detail="トップ20 PMDAデータベースがありません。")
     return values
 
 
 @app.get("/v1/evidence/{interaction_id}", response_class=HTMLResponse)
-def evidence_page(interaction_id: int, target_id: str) -> HTMLResponse:
+def evidence_page(
+    interaction_id: int,
+    target_id: str = Query(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9:_-]+$"),
+) -> HTMLResponse:
     try:
-        item = get_top20_evidence(interaction_id, target_id)
+        item = top20.evidence(interaction_id, target_id)
     except KeyError as error:
         raise HTTPException(status_code=404, detail="該当する根拠行がありません。") from error
     except RuntimeError as error:
@@ -163,6 +227,8 @@ async def resolve(request: ResolveRequest) -> ResolveResponse:
     input_names = parse_inputs(request.text, request.inputs)
     if not input_names:
         raise HTTPException(status_code=422, detail="有効な薬剤名がありません")
+    if len(input_names) > 20:
+        raise HTTPException(status_code=422, detail="薬剤名は20件以内にしてください")
     with connect() as connection:
         items = [resolve_one(connection, name) for name in input_names]
         if request.use_llm:
@@ -203,19 +269,37 @@ async def check(request: CheckRequest) -> CheckResponse:
     try:
         with connect() as connection:
             data = metadata(connection)
-            if top20_available():
+            if top20.available():
+                top20.require_clinically_ready()
+                if not release_integrity.ok:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"リリースDBの完全性検証に失敗しました: {release_integrity.reason}",
+                    )
                 results = [
-                    check_top20(connection, item.input_name, item.drug_id, request.target_id)
+                    top20.check(connection, item.input_name, item.drug_id, request.target_id)
                     for item in request.items
                 ]
             else:
                 if request.target_id != "clarithromycin":
                     raise HTTPException(status_code=503, detail="トップ20 PMDAデータベースがありません。")
+                if not is_clinically_reviewed(data.get("review_status")):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="判定データは医学レビュー未完了のため、臨床判定には使用できません。",
+                    )
+                if not release_integrity.ok:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"リリースDBの完全性検証に失敗しました: {release_integrity.reason}",
+                    )
                 results = [
                     check_drug(connection, item.input_name, item.drug_id, data["updated_at"])
                     for item in request.items
                 ]
     except KeyError as error:
         raise HTTPException(status_code=422, detail=f"不明なdrug_idです: {error.args[0]}") from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     results.sort(key=lambda item: (SEVERITY_RANK[item.status], item.display_name))
     return CheckResponse(results=results, disclaimer=DISCLAIMER)
