@@ -38,6 +38,10 @@ memo.md
 /Comment20260612_ChatGPT.md
 /Comment20260612_ChatGPT2.md
 
+# 作業ドキュメント・記事下書き（公開しない）
+docs/note_article_draft.md
+docs/product_release_remaining_work_report_20260615.md
+
 # 生成AI用ルールファイル
 CLAUDE.md
 Agent.md
