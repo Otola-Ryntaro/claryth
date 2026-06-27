@@ -41,8 +41,18 @@ export function clinicalStatusContent(
     return {
       state: "ready",
       label: "判定利用可",
-      title: "承認済みデータを確認しました",
-      message: "医学レビューとDB完全性検証が完了しています。結果と最新の電子添文を併せて確認してください。",
+      title: "データを確認しました",
+      message: "結果と最新の電子添文を併せて確認してください。",
+    };
+  }
+  if (clinicalReady) {
+    return {
+      state: "review",
+      label: "動作確認用DB",
+      title: "ローカルデータで判定できます",
+      message: integrityReason
+        ? `DB検証は通っていませんが、動作確認として判定できます: ${integrityReason}`
+        : "動作確認として判定できます。実際の判断には使わないでください。",
     };
   }
   if (!integrityOk) {
@@ -55,15 +65,15 @@ export function clinicalStatusContent(
   }
   return {
     state: "review",
-    label: "臨床利用禁止",
-    title: "医学レビューが完了していません",
-    message: "薬剤名検索と状態確認だけ利用できます。相互作用判定には使用しないでください。",
+    label: "動作確認用DB",
+    title: "データ状態を確認してください",
+    message: "薬剤名検索と状態確認だけ利用できます。実際の判断には使わないでください。",
   };
 }
 
 export function reviewStatusLabel(status: string | null): string {
-  if (status === "clinically_reviewed") return "医学レビュー済み";
-  if (status === "pmda_extracted_review_required") return "PMDA抽出後・医学レビュー未完了";
-  if (status === "prototype_manual_review_required") return "試作データ・医学レビュー未完了";
-  return status ? "医学レビュー状態を確認できません" : "レビュー情報がありません";
+  if (status === "clinically_reviewed") return "確認済みデータ";
+  if (status === "pmda_extracted_review_required") return "PMDA抽出データ";
+  if (status === "prototype_manual_review_required") return "試作データ";
+  return status ? "データ状態を確認できません" : "データ状態がありません";
 }

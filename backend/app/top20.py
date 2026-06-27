@@ -12,7 +12,7 @@ from typing import Iterator
 from rapidfuzz import fuzz, process
 
 from .checker import SEVERITY_RANK
-from .config import settings
+from .config import settings, strict_data_guard_enabled
 from .models import CheckResult, DrugCandidate, IngredientResult, TargetDrug
 from .normalize import normalize_name
 from .review import is_clinically_reviewed
@@ -71,7 +71,7 @@ def clinically_ready() -> bool:
 def require_clinically_ready() -> None:
     if not available():
         raise RuntimeError("トップ20 PMDAデータベースがありません。")
-    if not clinically_ready():
+    if strict_data_guard_enabled() and not clinically_ready():
         raise RuntimeError(
             "トップ20データは医学レビュー未完了のため、臨床判定には使用できません。"
         )

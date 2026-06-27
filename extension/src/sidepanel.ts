@@ -55,6 +55,13 @@ let clinicalReady = false;
 let ollamaConnected = false;
 const selectedCandidates = new Map<string, Candidate>();
 
+type RuntimeConfig = {
+  projectRoot?: string;
+  apiToken?: string;
+  appId?: string;
+  protocolVersion?: number;
+};
+
 const labels: Record<InteractionStatus, string> = {
   contraindicated: "併用禁忌",
   caution: "併用注意",
@@ -139,19 +146,33 @@ async function loadProjectConfig(): Promise<void> {
   try {
     const response = await fetch("project-config.json");
     if (response.ok) {
-      const config = (await response.json()) as {
-        projectRoot?: string;
-        apiToken?: string;
-        appId?: string;
-        protocolVersion?: number;
-      };
-      if (config.projectRoot) projectRoot = config.projectRoot;
-      if (config.apiToken) apiToken = config.apiToken;
-      if (config.appId) expectedAppId = config.appId;
-      if (config.protocolVersion) expectedProtocolVersion = config.protocolVersion;
+      applyRuntimeConfig((await response.json()) as RuntimeConfig);
     }
   } catch {
     // The placeholder remains useful for source-only or non-built previews.
+  }
+}
+
+function applyRuntimeConfig(config: RuntimeConfig): void {
+  if (config.projectRoot) projectRoot = config.projectRoot;
+  if (config.apiToken) apiToken = config.apiToken;
+  if (config.appId) expectedAppId = config.appId;
+  if (config.protocolVersion) expectedProtocolVersion = config.protocolVersion;
+}
+
+async function pairWithApi(): Promise<void> {
+  const response = await fetch(`${API_BASE}/pairing/config`, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error("ローカルAPI認証情報を取得できませんでした。");
+  const config = (await response.json()) as RuntimeConfig;
+  applyRuntimeConfig(config);
+  if (
+    !apiToken ||
+    expectedAppId !== "jp.clarith.local-api" ||
+    expectedProtocolVersion !== 1
+  ) {
+    throw new Error("接続先APIの認証情報が不正です。");
   }
 }
 
@@ -213,6 +234,7 @@ async function openLauncher(uri: string, service: "api" | "ollama"): Promise<voi
 
 async function refreshHealth(): Promise<void> {
   try {
+    if (!apiToken) await pairWithApi();
     const health = await api<{
       database: string;
       dataset_version: string | null;
@@ -230,6 +252,8 @@ async function refreshHealth(): Promise<void> {
       integrity_reason: string;
       release_manifest_id: string | null;
       release_manifest_expires_at: string | null;
+      strict_data_guard: boolean;
+      data_review_ready: boolean;
     }>("/health");
     if (
       health.app_id !== expectedAppId ||
@@ -241,14 +265,16 @@ async function refreshHealth(): Promise<void> {
       throw new Error("接続先APIの認証に失敗しました。");
     }
     apiConnected = health.database === "ok";
-    clinicalReady = health.clinical_ready && health.integrity_ok;
+    clinicalReady = health.clinical_ready;
     healthButton.classList.remove("offline");
     healthButton.classList.add("online");
-    statusText.textContent = clinicalReady ? "判定可能" : health.integrity_ok ? "評価版DB" : "DB検証失敗";
+    statusText.textContent = clinicalReady
+      ? health.integrity_ok ? "判定可能" : "動作確認"
+      : health.integrity_ok ? "DB確認中" : "DB検証失敗";
     setRuntimeState(
       apiRuntimeStatus,
-      !apiConnected ? "DBエラー" : clinicalReady ? "判定可能" : health.integrity_ok ? "臨床利用不可" : "完全性エラー",
-      !apiConnected || !health.integrity_ok ? "error" : clinicalReady ? "ready" : "warning",
+      !apiConnected ? "DBエラー" : clinicalReady ? health.integrity_ok ? "判定可能" : "動作確認用" : health.integrity_ok ? "確認中" : "完全性エラー",
+      !apiConnected ? "error" : clinicalReady ? health.integrity_ok ? "ready" : "warning" : health.integrity_ok ? "warning" : "error",
     );
     const clinicalStatus = clinicalStatusContent(
       apiConnected,
@@ -269,7 +295,7 @@ async function refreshHealth(): Promise<void> {
       ? "AI補助なしで一般名・販売名・誤字候補を検索できます。"
       : !health.integrity_ok
         ? `DB完全性検証に失敗したため判定を停止しています: ${health.integrity_reason}`
-        : "医学レビュー未完了のため相互作用判定を停止しています。";
+        : "データ状態を確認してください。";
   } catch {
     apiConnected = false;
     clinicalReady = false;
@@ -559,7 +585,7 @@ async function resolveAndCheck(): Promise<void> {
   resultSection.classList.add("hidden");
   candidateSection.classList.add("hidden");
   if (!clinicalReady) {
-    showError("判定データは医学レビュー未完了のため、臨床判定には使用できません。");
+    showError("判定データを利用できません。APIとDBの状態を再確認してください。");
     return;
   }
   if (!input.value.trim()) {
@@ -630,10 +656,6 @@ llmToggle.addEventListener("change", () => {
 
 async function initialize(): Promise<void> {
   await loadProjectConfig();
-  if (!apiToken) {
-    showError("API認証情報がありません。初回設定の登録コマンドを実行してください。");
-    return;
-  }
   await refreshHealth();
   if (apiConnected) await loadTargets();
 }

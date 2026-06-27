@@ -16,6 +16,10 @@ def _allowed_origins() -> tuple[str, ...]:
     return (f"chrome-extension://{DEFAULT_EXTENSION_ID}",)
 
 
+def strict_data_guard_enabled() -> bool:
+    return os.getenv("CLARITH_STRICT_DATA_GUARD", "").lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_path: Path = Path(

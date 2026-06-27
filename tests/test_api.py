@@ -25,7 +25,9 @@ def test_dataset_and_health_endpoints() -> None:
     assert dataset.json()["dataset_version"] == "0.1.1-prototype"
     assert health.status_code == 200
     assert health.json()["database"] == "ok"
-    assert health.json()["clinical_ready"] is False
+    assert health.json()["clinical_ready"] is True
+    assert health.json()["strict_data_guard"] is False
+    assert health.json()["data_review_ready"] is False
     assert health.json()["clinical_source"] == "top20"
     assert "ollama" not in health.json()
 
@@ -91,7 +93,8 @@ def test_unrecognized_chrome_extension_origin_is_rejected() -> None:
     assert response.status_code == 403
 
 
-def test_unreviewed_top20_database_blocks_clinical_check() -> None:
+def test_unreviewed_top20_database_blocks_clinical_check_in_strict_mode(monkeypatch) -> None:
+    monkeypatch.setenv("CLARITH_STRICT_DATA_GUARD", "1")
     with authenticated_client() as client:
         response = client.post(
             "/v1/check",
@@ -101,7 +104,8 @@ def test_unreviewed_top20_database_blocks_clinical_check() -> None:
     assert "医学レビュー未完了" in response.json()["detail"]
 
 
-def test_unreviewed_seed_database_blocks_fallback_check() -> None:
+def test_unreviewed_seed_database_blocks_fallback_check_in_strict_mode(monkeypatch) -> None:
+    monkeypatch.setenv("CLARITH_STRICT_DATA_GUARD", "1")
     with patch("backend.app.main.top20.available", return_value=False):
         with authenticated_client() as client:
             response = client.post(
@@ -115,6 +119,7 @@ def test_unreviewed_seed_database_blocks_fallback_check() -> None:
 def test_integrity_failure_blocks_reviewed_clinical_check(monkeypatch) -> None:
     from backend.app import main, top20
 
+    monkeypatch.setenv("CLARITH_STRICT_DATA_GUARD", "1")
     failure = IntegrityResult(False, "database hash mismatch: top20")
     monkeypatch.setattr(top20, "clinically_ready", lambda: True)
     monkeypatch.setattr(main, "verify_release_manifest", lambda: failure)
@@ -128,6 +133,21 @@ def test_integrity_failure_blocks_reviewed_clinical_check(monkeypatch) -> None:
     assert health.json()["clinical_ready"] is False
     assert response.status_code == 503
     assert "完全性検証" in response.json()["detail"]
+
+
+def test_local_mode_allows_check_with_unreviewed_or_modified_data() -> None:
+    with authenticated_client() as client:
+        resolution = client.post(
+            "/v1/resolve",
+            json={"text": "ワーファリン", "use_llm": False},
+        )
+        item = resolution.json()["items"][0]
+        response = client.post(
+            "/v1/check",
+            json={"items": [{"input_name": item["input_name"], "drug_id": item["selected"]["drug_id"]}]},
+        )
+    assert response.status_code == 200
+    assert response.json()["results"][0]["status"] in {"caution", "not_listed"}
 
 
 def test_ollama_warmup_endpoint() -> None:

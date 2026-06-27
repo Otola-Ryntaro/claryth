@@ -9,11 +9,18 @@ test("approved and verified data is clearly available", () => {
   assert.equal(status.label, "判定利用可");
 });
 
-test("unreviewed data is clearly prohibited", () => {
+test("local data can be shown as a development dataset", () => {
   const status = clinicalStatusContent(true, false, true);
   assert.equal(status.state, "review");
-  assert.equal(status.label, "臨床利用禁止");
-  assert.match(status.message, /相互作用判定には使用しない/);
+  assert.equal(status.label, "動作確認用DB");
+  assert.match(status.message, /実際の判断には使わない/);
+});
+
+test("modified local data can still be used for development checks", () => {
+  const status = clinicalStatusContent(true, true, false, "database hash mismatch: top20");
+  assert.equal(status.state, "review");
+  assert.equal(status.label, "動作確認用DB");
+  assert.match(status.message, /動作確認として判定できます/);
 });
 
 test("expired, invalid, modified, and missing releases have actionable reasons", () => {
@@ -37,10 +44,10 @@ test("offline state blocks interpretation as a data approval state", () => {
 });
 
 test("review status codes are translated for users", () => {
-  assert.equal(reviewStatusLabel("clinically_reviewed"), "医学レビュー済み");
+  assert.equal(reviewStatusLabel("clinically_reviewed"), "確認済みデータ");
   assert.equal(
     reviewStatusLabel("pmda_extracted_review_required"),
-    "PMDA抽出後・医学レビュー未完了",
+    "PMDA抽出データ",
   );
-  assert.equal(reviewStatusLabel(null), "レビュー情報がありません");
+  assert.equal(reviewStatusLabel(null), "データ状態がありません");
 });

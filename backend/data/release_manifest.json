@@ -1,0 +1,28 @@
+{
+  "manifest_version": 1,
+  "manifest_id": "clarith-evaluation-20260627",
+  "created_at": "2026-06-27T02:55:20+00:00",
+  "expires_at": "2027-06-27T00:00:00+00:00",
+  "databases": {
+    "runtime": {
+      "path": "backend/data/clarith.db",
+      "sha256": "bf0a0ee85fbe84dbd39857b99f3b71b15f4dc7dade08c04123ba76ce698ed736",
+      "schema_version": 1,
+      "dataset_date": "2026-06-12",
+      "review_status": "prototype_manual_review_required",
+      "reviewer": null,
+      "reviewed_at": null,
+      "approval_id": null
+    },
+    "top20": {
+      "path": "backend/data/top20_interactions.sqlite",
+      "sha256": "79f124df592d04dd744da10ead728270db4e9488e76d32b101075eebeb4d63f7",
+      "schema_version": 1,
+      "dataset_date": "2026-06-12",
+      "review_status": "pmda_extracted_review_required",
+      "reviewer": null,
+      "reviewed_at": null,
+      "approval_id": null
+    }
+  }
+}

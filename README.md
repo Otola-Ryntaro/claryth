@@ -4,16 +4,13 @@
 
 **く**すりの **ら**くな **リ**スク **ス**クリーニング、略して「くらりす」です。
 
-クラリスロマイシンを含む「相互作用検索が複雑な代表20成分」と、複数の処方薬・OTC医薬品との相互作用を確認する、医療者・院内利用向けのChrome拡張機能です。判定APIとデータベースはPC内で動作し、Ollamaは任意の薬剤名候補補助としてだけ利用できます。
+クラリスロマイシンなど相互作用確認が少し面倒な薬を基準に、複数の処方薬・OTC医薬品との組み合わせをローカルで調べるためのChrome拡張です。FastAPIとSQLiteをPC内で動かし、薬剤名候補の補助だけ任意でOllamaを使えます。
 
 > [!WARNING]
-> 本ツールは医療判断を代替しません。「記載なし」は相互作用がないことの保証ではありません。必ず最新の電子添文、患者背景、用量、腎・肝機能を確認してください。
-
-> [!CAUTION]
-> 現在同梱されるデータは医学レビュー未完了です。レビュー状態が`clinically_reviewed`になるまで、APIと拡張機能は相互作用判定を停止します。現状は開発・デモ・非臨床評価にだけ使用してください。
+> このツールは医療判断を代替しません。「記載なし」は相互作用がないことの保証ではありません。実際の判断では、必ず最新の電子添文、患者背景、用量、腎・肝機能などを確認してください。
 
 > [!IMPORTANT]
-> 本リポジトリは個人開発の実験的なオープンソース公開です。品質・正確性・最新性を保証しません。医療機器ではなく、診断・治療・処方の判断根拠として使用しないでください。利用はすべて自己責任とし、作者は本ソフトウェアの使用から生じるいかなる結果についても責任を負いません（[LICENSE](LICENSE)の無保証条項に従います）。
+> 個人開発の実験的なオープンソース公開です。品質・正確性・最新性は保証しません。診断・治療・処方の判断根拠として使わないでください。利用は自己責任でお願いします（[LICENSE](LICENSE)の無保証条項に従います）。
 
 ## 主な機能
 
@@ -22,21 +19,30 @@
 - 選択薬側と入力薬側のPMDA電子添文10.1・10.2を双方向に直接名称照合
 - 表記揺れや軽微な誤字から候補を提示し、利用者が薬剤を確定
 - `併用禁忌`、`併用注意`、`確認資料上の記載なし`などを薬剤ごとに表示
-- 該当相互作用行をローカル根拠ページで即表示し、PMDA電子添文PDFへ直接移動
-- SQLiteの構造化データだけで相互作用を判定
-- 標準動作はLLMなし。Ollamaは辞書で未解決の薬剤名候補提示だけを任意で補助
+- 該当行をローカル根拠ページで表示し、PMDA電子添文PDFへ移動
 - 相互作用、重大度、根拠、説明はLLMで生成せず、SQLiteの収載内容だけを表示
+- 標準動作はLLMなし。Ollamaは薬剤名候補の補助だけに使用
 - APIは`127.0.0.1:8765`、Ollamaは`127.0.0.1:11434`だけを使用
-- 拡張機能とAPIはユーザー単位の共有トークン、固定アプリID、プロトコル版で接続先を確認
-- 起動時にEd25519署名manifest、DBのSHA-256、SQLite完全性、スキーマ版、有効期限を検証
-- APIは固定された正規拡張Originだけを許可し、入力サイズ・同時実行数・呼出頻度を制限
-- 画面上部へ判定利用可否と理由を常時表示し、署名不正・期限切れ・未レビュー時は操作を停止
+- 拡張機能とAPIはユーザー単位の共有トークンで接続
+- 起動時に署名、DBハッシュ、SQLite完全性、スキーマ版、有効期限を確認
 
 ## はじめる
 
 詳しい画面操作やトラブル対応は[初心者向けユーザーガイド](docs/user_guide.md)を参照してください。
 
-Windows PowerShellでプロジェクトフォルダを開き、次を順に実行します。
+Windows PowerShellでプロジェクトフォルダを開き、同梱DBをそのまま使う場合は次を実行します。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_release.ps1
+```
+
+その後、Chromeで`chrome://extensions`を開き、デベロッパーモードを有効にして、生成された`extension/dist`を「パッケージ化されていない拡張機能」として読み込みます。サイドパネルで「判定APIを起動」を押すと、このPC用のローカルAPI認証情報を自動取得します。`dist`にはAPIトークンを保存しません。
+
+同梱DBは動作確認用です。データ状態、署名、期限、DB変更などに問題がある場合、画面上部に理由が表示され、相互作用判定は停止します。
+
+## ローカル開発
+
+PMDA XMLからDBを作り直す場合は、PMDAの一括ダウンロードサービスから取得したSGML/XMLを`database`へ展開してから実行します。
 
 ```powershell
 python -m pip install uv==0.11.21
@@ -55,31 +61,21 @@ $manifestId = "local-$((Get-Date).ToString('yyyyMMdd-HHmmss'))"
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_launcher.ps1
 ```
 
-上の鍵生成はソースからDBを再構築するローカル開発用です。正式配布では、オフライン管理したリリース秘密鍵で作成したDB、`release_manifest.json`、`release_manifest.sig`、対応する公開鍵を同梱し、利用PCへ秘密鍵を配布しません。署名、ハッシュ、SQLite完全性、スキーマ版、有効期限のいずれかが不正な場合、APIは相互作用判定を停止します。
-
-ランチャー登録スクリプトは、ユーザー単位のAPI認証トークンを`.runtime/auth.json`へ生成し、Windows ACLを現在ユーザーだけへ制限したうえで拡張機能をビルドします。トークンを更新する場合は`-RotateToken`を付け、Chromeの拡張機能管理画面で「くらりす」を再読み込みしてください。
-
-Python依存は`uv.lock`内のバージョンと配布ファイルSHA-256へ固定されています。Chrome拡張依存は`package-lock.json`から`npm ci`で再現します。リリース検証CIは両方の監査とCycloneDX SBOM生成を実行します。
-
-固定評価版bundleは次のように作成・検証できます。現在のDBは医学レビュー未完了のため、`--allow-evaluation`なしの製品版bundle作成は意図的に失敗します。製品版出荷には[リリース運用手順](docs/release_operations.md)の全ゲートを満たす必要があります。
+ローカルでAPI仕様画面が必要な場合だけ、起動前に次を設定します。通常起動では`/docs`、`/redoc`、`/openapi.json`を公開しません。
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\build_release_bundle.py --release-id <ID> --allow-evaluation
-.\.venv\Scripts\python.exe scripts\verify_release_bundle.py release\clarith-evaluation-<ID>.zip `
-  --expected-public-key-sha256 <別経路で受領した公開鍵SHA-256>
+$env:CLARITH_MODE = "development"
 ```
 
-Chromeで`chrome://extensions`を開き、デベロッパーモードを有効にして、`extension/dist`を「パッケージ化されていない拡張機能」として読み込みます。その後、「くらりす」のサイドパネルで「判定APIを起動」を押します。
+AI薬剤名補助を使う場合は、別途Ollamaを導入してモデルを取得し、サイドパネルの「AI薬剤名補助を使う」をオンにします。オフの場合、OllamaへのHTTP通信は行いません。
 
-APIは既定で製品モードとして起動し、`/docs`、`/redoc`、`/openapi.json`を公開しません。ローカル開発でAPI仕様画面が必要な場合だけ、起動前に`$env:CLARITH_MODE = "development"`を設定してください。
+```powershell
+ollama pull qwen3.5:9b
+```
 
-現在のトップ20 DBは`pmda_extracted_review_required`のため、起動後も画面上部に「臨床利用禁止」「医学レビューが完了していません」と表示され、相互作用判定ボタンは無効です。署名不正、期限切れ、DB変更を検出した場合は「DB完全性検証に失敗しました」と理由を表示します。
+## データ
 
-AI薬剤名補助を使う場合だけ、別途Ollamaを導入して`ollama pull qwen3.5:9b`を実行し、サイドパネルの「AI薬剤名補助を使う」をオンにします。オフの場合、OllamaへのHTTP通信は行いません。
-
-## データの取得元と取得日
-
-### 現在の画面判定用データ
+### 同梱の動作確認用データ
 
 - ファイル: `backend/data/seed.json`
 - データ版: `0.1.1-prototype`
@@ -87,9 +83,8 @@ AI薬剤名補助を使う場合だけ、別途Ollamaを導入して`ollama pull
 - 参照元:
   - [PMDA 医療用医薬品 情報検索](https://www.pmda.go.jp/PmdaSearch/iyakuSearch/)
   - [PMDA 一般用医薬品・要指導医薬品 情報検索](https://www.pmda.go.jp/PmdaSearch/otcSearch/)
-- 状態: `prototype_manual_review_required`
 
-これは開発・動作確認用の限定的な手動シードです。PMDA全件抽出結果を自動反映した本番データではありません。
+これは開発・動作確認用の限定的な手動シードです。PMDA全件抽出結果を自動反映したデータではありません。
 
 ### PMDA全件抽出用データ
 
@@ -100,9 +95,8 @@ AI薬剤名補助を使う場合だけ、別途Ollamaを導入して`ollama pull
 - 対象: XML 17,737ファイル、内容重複除外後11,245文書
 - 解析結果: クラリスロマイシン含有26文書、解析エラー0文書
 - 出力: `backend/data/pmda_clarith.sqlite`および`artifacts/pmda_clarith/`
-- 状態: すべて`candidate`。医師・薬剤師によるレビュー前
 
-トップ20検索では同じPMDA XMLから`backend/data/top20_interactions.sqlite`を構築します。2026年6月12日の構築結果は、一般名3,954件、別名15,527件、10.1・10.2行43,235件です。このDBも`pmda_extracted_review_required`であり、医学レビュー済みを意味しません。
+トップ20検索では同じPMDA XMLから`backend/data/top20_interactions.sqlite`を構築します。2026年6月12日の構築結果は、一般名3,954件、別名15,527件、10.1・10.2行43,235件です。
 
 取得日はローカルファイルの取得記録とDBの`source_coverage`に基づきます。個々の電子添文の改訂年月は文書ごとに保持しています。詳細は[抽出レポート](docs/pmda_clarith_extraction_report_20260612.md)を参照してください。
 
@@ -115,23 +109,16 @@ PMDA検索画面の自動巡回は行いません。PMDAは検索ページの自
 ```powershell
 .\.venv\Scripts\python.exe scripts\build_pmda_clarith_db.py --source database --dataset-date 2026-06-12
 .\.venv\Scripts\python.exe scripts\validate_pmda_clarith_db.py
-.\.venv\Scripts\python.exe scripts\export_pmda_clarith_review.py
 .\.venv\Scripts\python.exe scripts\build_pmda_top20_db.py --source database --dataset-date 2026-06-12
 ```
 
-抽出候補は医学レビュー前に臨床判定へ使用しない設計です。未レビューDBを検索・レビュー用に配置しても、`POST /v1/check`は503で停止します。レビュー済みランタイムDBへの反映手順は[016 レビュー済み候補の本番DB反映](docs/016_pmda_runtime_promotion.md)で管理しています。
-
-DB再構築後は、医学レビュー状態にかかわらずリリースmanifestの再署名が必要です。レビュー状態が`clinically_reviewed`の場合、署名時にレビュー者、レビュー日時、承認IDをDB metadataまたは`sign_release_manifest.py`の対応オプションで指定しなければ署名処理が失敗します。
-
-トップ20抽出結果は`top20_interactions.candidate.sqlite`へ作成されます。候補DBからCSVを出力し、承認済みCSVを取り込んでから、アプリが読む`top20_interactions.sqlite`へ昇格します。候補の欠落、内容変更、承認情報不足、未対応の薬剤名マスターがある場合はfail-closedで停止します。
+DBを再構築したら、manifestの再署名も必要です。
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\top20_review.py export
-.\.venv\Scripts\python.exe scripts\top20_review.py import
-.\.venv\Scripts\python.exe scripts\top20_review.py promote
+$expiresAt = (Get-Date).ToUniversalTime().AddDays(30).ToString("o")
+$manifestId = "local-$((Get-Date).ToString('yyyyMMdd-HHmmss'))"
+.\.venv\Scripts\python.exe scripts\sign_release_manifest.py --expires-at $expiresAt --manifest-id $manifestId
 ```
-
-詳しい入力列と生成レポートは[016 レビュー済み候補の本番DB反映](docs/016_pmda_runtime_promotion.md)を参照してください。医学的判断を自動承認するコマンドはありません。
 
 ## トップ20検索の制約
 
@@ -144,7 +131,7 @@ DB再構築後は、医学レビュー状態にかかわらずリリースmanife
 
 ## トップ20成分の選定根拠
 
-基準薬となる代表20成分は、①併用禁忌の多さ、②CYP/P-gp/OATPなど機序の複雑さ、③出血・不整脈・中毒など重症化のしやすさ、④腎機能・用量・商品名で判断が変わる度合い、を基準に選定しています。各成分の選定理由・代表的な相互作用・出典は[トップ20成分の選定根拠](docs/top20_selection_rationale.md)にまとめています（各成分のID・順位の定義は[017_top20_scope_and_targets.md](docs/017_top20_scope_and_targets.md)）。
+基準薬となる代表20成分は、併用禁忌の多さ、CYP/P-gp/OATPなど機序の複雑さ、出血・不整脈・中毒など重症化のしやすさ、腎機能・用量・商品名で判断が変わる度合いを基準に選定しています。各成分の選定理由・代表的な相互作用・出典は[トップ20成分の選定根拠](docs/top20_selection_rationale.md)にまとめています。
 
 ## 構成
 
@@ -164,4 +151,4 @@ DB再構築後は、医学レビュー状態にかかわらずリリースmanife
 
 Copyright (c) 2026 [音良林太郎](https://x.com/Otola_ryntaro)
 
-PMDA電子添文など第三者が権利を持つ原資料・抽出データにはMIT Licenseを適用しません。PMDAの[添付文書等情報検索ページご利用上の注意](https://www.pmda.go.jp/searchhelp_005.html)と各権利者の条件に従ってください。原XML、生成SQLite、レビューCSVはGit管理対象外です。
+PMDA電子添文など第三者が権利を持つ原資料・抽出データにはMIT Licenseを適用しません。PMDAの[添付文書等情報検索ページご利用上の注意](https://www.pmda.go.jp/searchhelp_005.html)と各権利者の条件に従ってください。公開repoにはアプリ実行に必要な評価用SQLite DB、`release_manifest.json`、`release_manifest.sig`を同梱します。原XML、候補DB、作業用エクスポートはGit管理対象外です。

@@ -35,6 +35,22 @@ def test_protected_api_requires_matching_token() -> None:
     assert valid.status_code == 200
 
 
+def test_pairing_config_exposes_local_token_to_the_extension() -> None:
+    with TestClient(app) as client:
+        response = client.get("/pairing/config")
+    assert response.status_code == 200
+    assert response.json()["app_id"] == APP_ID
+    assert response.json()["protocol_version"] == PROTOCOL_VERSION
+    assert response.json()["apiToken"] == VALID_TOKEN
+    assert response.json()["projectRoot"]
+
+
+def test_pairing_config_keeps_web_origins_out() -> None:
+    with TestClient(app) as client:
+        response = client.get("/pairing/config", headers={"Origin": "https://example.com"})
+    assert response.status_code == 403
+
+
 def test_protected_api_fails_closed_when_auth_is_unconfigured() -> None:
     from unittest.mock import patch
 

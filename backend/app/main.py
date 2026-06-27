@@ -12,7 +12,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .auth import APP_ID, PROTOCOL_VERSION, STARTUP_NONCE, TOKEN_HEADER
 from .auth import configured_token, token_matches
 from .checker import SEVERITY_RANK, check_drug
-from .config import settings
+from .config import ROOT, settings, strict_data_guard_enabled
 from .database import connect, ensure_database, metadata
 from .integrity import IntegrityResult, verify_release_manifest
 from .models import CheckRequest, CheckResponse, ResolveRequest, ResolveResponse, TargetDrug
@@ -74,7 +74,7 @@ async def restrict_browser_origins(request: Request, call_next):
     allowed = origin is None or origin in settings.allowed_origins
     if not allowed:
         return JSONResponse(status_code=403, content={"detail": "許可されていないOriginです"})
-    if request.method != "OPTIONS" and request.url.path != "/health":
+    if request.method != "OPTIONS" and request.url.path not in {"/health", "/pairing/config"}:
         expected = configured_token()
         if expected is None:
             return JSONResponse(
@@ -124,7 +124,11 @@ async def health(request: Request) -> dict[str, object]:
         if top20_ok
         else db_ok and is_clinically_reviewed(data.get("review_status"))
     )
+    strict_guard = strict_data_guard_enabled()
     clinical_ready = review_ready and release_integrity.ok
+    check_ready = db_ok and (
+        clinical_ready or (not strict_guard and (top20_ok or request.url.path == "/health"))
+    )
     return {
         "app_id": APP_ID,
         "protocol_version": PROTOCOL_VERSION,
@@ -137,12 +141,27 @@ async def health(request: Request) -> dict[str, object]:
         "review_status": data.get("review_status"),
         "top20_database": "ok" if top20_ok else "unavailable",
         "top20_review_status": top20_data.get("review_status"),
-        "clinical_ready": clinical_ready,
+        "clinical_ready": check_ready,
+        "strict_data_guard": strict_guard,
+        "data_review_ready": review_ready,
         "clinical_source": clinical_source,
         "integrity_ok": release_integrity.ok,
         "integrity_reason": release_integrity.reason,
         "release_manifest_id": release_integrity.manifest_id,
         "release_manifest_expires_at": release_integrity.expires_at,
+    }
+
+
+@app.get("/pairing/config")
+def pairing_config() -> dict[str, object]:
+    token = configured_token()
+    if token is None:
+        raise HTTPException(status_code=503, detail="ローカルAPI認証が未設定です。")
+    return {
+        "app_id": APP_ID,
+        "protocol_version": PROTOCOL_VERSION,
+        "apiToken": token,
+        "projectRoot": str(ROOT),
     }
 
 
@@ -271,7 +290,7 @@ async def check(request: CheckRequest) -> CheckResponse:
             data = metadata(connection)
             if top20.available():
                 top20.require_clinically_ready()
-                if not release_integrity.ok:
+                if strict_data_guard_enabled() and not release_integrity.ok:
                     raise HTTPException(
                         status_code=503,
                         detail=f"リリースDBの完全性検証に失敗しました: {release_integrity.reason}",
@@ -283,12 +302,12 @@ async def check(request: CheckRequest) -> CheckResponse:
             else:
                 if request.target_id != "clarithromycin":
                     raise HTTPException(status_code=503, detail="トップ20 PMDAデータベースがありません。")
-                if not is_clinically_reviewed(data.get("review_status")):
+                if strict_data_guard_enabled() and not is_clinically_reviewed(data.get("review_status")):
                     raise HTTPException(
                         status_code=503,
                         detail="判定データは医学レビュー未完了のため、臨床判定には使用できません。",
                     )
-                if not release_integrity.ok:
+                if strict_data_guard_enabled() and not release_integrity.ok:
                     raise HTTPException(
                         status_code=503,
                         detail=f"リリースDBの完全性検証に失敗しました: {release_integrity.reason}",
